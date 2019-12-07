@@ -50,6 +50,11 @@ sub message {
 
 sub run {
     my $self = shift;
+
+    my $message = $self->message;
+    $self->debug( 'RFC5321.MailFrom' => $message->from );
+    $self->debug( to => join ', ', $message->to );
+
     $_->run for @filters;
 
     delete $ENV{QMAILQUEUE};    # use original qmail-queue
@@ -71,6 +76,7 @@ Mail::Qmail::Filter - filter e-mails in qmail-queue context
 =head1 SYNOPSIS
 
     use Mail::Qmail::Filter::DMARC;
+    use Mail::Qmail::Filter::SpamAssassin qw(:mark);
 
     Mail::Qmail::Filter->run;
 

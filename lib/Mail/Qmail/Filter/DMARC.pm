@@ -47,10 +47,6 @@ sub run {
     my $filter  = shift;
     my $message = $filter->message;
 
-    my $envelope_from = $message->from;
-    $filter->debug( 'RFC5321.MailFrom' => $envelope_from );
-    $filter->debug( to => join ', ', $message->to );
-
     if ( exists $ENV{RELAYCLIENT} ) {
         $filter->debug(
             RELAYCLIENT => "$ENV{TCPREMOTEHOST} [$ENV{TCPREMOTEIP}]" );
@@ -94,7 +90,7 @@ sub run {
                 my $dmarc_result = Mail::DMARC::PurePerl->new(
                     source_ip   => $ENV{TCPREMOTEIP},
                     envelope_to => domain( ( $message->to )[0] ),
-                    if_set( envelope_from => domain($envelope_from) ),
+                    if_set( envelope_from => domain( $message->from ) ),
                     if_set( header_from   => $header_from_domain ),
                     dkim => $dkim,
                     spf  => {

@@ -3,6 +3,7 @@ Changes
 lib/App/Qmail/DMARC.pm
 lib/Mail/Qmail/Filter.pm
 lib/Mail/Qmail/Filter/DMARC.pm
+lib/Mail/Qmail/Filter/SpamAssassin.pm
 lib/MailX/Qmail/Queue/Message.pm
 Makefile.PL
 MANIFEST			This list of files

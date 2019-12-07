@@ -22,6 +22,7 @@ WriteMakefile(
         'Mail::DMARC::PurePerl'       => 0,
         'Mail::Header'                => 0,
         'Mail::Qmail::Queue::Message' => 0,
+        'Mail::SpamAssassin'          => 0,
         'Mail::SPF'                   => 0,
         'namespace::clean'            => 0,
     },
