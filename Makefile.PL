@@ -23,6 +23,7 @@ WriteMakefile(
         'Mail::Header'                => 0,
         'Mail::Qmail::Queue::Message' => 0,
         'Mail::SPF'                   => 0,
+        'namespace::clean'            => 0,
     },
     dist  => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean => { FILES    => 'App-Qmail-DMARC-*' },

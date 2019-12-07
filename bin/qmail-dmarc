@@ -3,134 +3,11 @@
 use 5.014;
 use warnings;
 
-our $VERSION = '0.7';
+our $VERSION = '1.0';
 
-use IO::Handle;
+use Mail::Qmail::Filter::DMARC;
 
-my $feedback_fh;
-
-BEGIN {
-    # Open ASAP before the handle gets reused:
-    $feedback_fh = IO::Handle->new_from_fd( 4, 'w' )
-      or warn "Cannot open feedback handle: $!";
-}
-
-use FindBin ();
-use Mail::DKIM::Verifier;
-use Mail::DMARC::PurePerl;
-use MailX::Qmail::Queue::Message;
-
-my @debug;
-
-sub debug {
-    push @debug, join ': ', @_;
-}
-
-sub domain {
-    shift =~ s/.*\@//r;
-}
-
-sub if_set {
-    my ( $key, $value ) = @_;
-    return unless defined $value && length $value;
-    $key => $value;
-}
-
-sub reject {
-    $feedback_fh->print("D@_");
-    debug action => 'reject';
-    exit 88 if $ENV{DMARC_REJECT};
-}
-
-sub spf_query {
-    require Mail::SPF;
-    my $request = Mail::SPF::Request->new(@_);
-    state $server = Mail::SPF::Server->new;
-    $server->process($request);
-}
-
-my $message = MailX::Qmail::Queue::Message->receive
-  or die "Invalid message\n";
-
-$SIG{__DIE__} = sub {
-    debug died => "@_" unless $^S;
-    die @_;
-};
-
-my $envelope_from = $message->from;
-debug 'RFC5321.MailFrom' => $envelope_from;
-debug to => join ', ', $message->to;
-
-if ( exists $ENV{RELAYCLIENT} ) {
-    debug RELAYCLIENT => "$ENV{TCPREMOTEHOST} [$ENV{TCPREMOTEIP}]";
-}
-else {
-
-    my $dkim = Mail::DKIM::Verifier->new;
-    $dkim->PRINT( $message->body =~ s/\cM?\cJ/\cM\cJ/gr );
-    $dkim->CLOSE;
-    debug 'DKIM result' => $dkim->result;
-
-    if ( $dkim->result ne 'pass' ) {
-
-        debug 'Remote IP' => $ENV{TCPREMOTEIP};
-
-        my %spf_query = ( ip_address => $ENV{TCPREMOTEIP} );
-
-        debug helo => $spf_query{helo_identity} = $message->helo;
-
-        my $header_from = $message->header_from;
-        my $header_from_domain;
-        if ($header_from) {
-            debug 'RFC5322.From' => $spf_query{identity} =
-              $header_from->address;
-            $header_from_domain = $header_from->host;
-            $spf_query{scope} = 'mfrom';
-        }
-        else {
-            $spf_query{scope} = 'helo';
-
-            # identity required by Mail::SPF:
-            $spf_query{identity} = $spf_query{helo_identity};
-        }
-
-        my $spf_result = spf_query(%spf_query);
-        debug 'SPF result' => $spf_result;
-        $message->add_header( $spf_result->received_spf_header );
-
-        my $dmarc_text = (
-            my $dmarc_result = Mail::DMARC::PurePerl->new(
-                source_ip   => $ENV{TCPREMOTEIP},
-                envelope_to => domain( ( $message->to )[0] ),
-                if_set( envelope_from => domain($envelope_from) ),
-                if_set( header_from   => $header_from_domain ),
-                dkim => $dkim,
-                spf  => {
-                    if_set( domain => $header_from_domain ),
-                    scope  => $spf_query{scope},
-                    result => $spf_result->code,
-                },
-            )->validate
-        )->result;
-        debug 'DMARC result' => $dmarc_text;
-        $message->add_header("DMARC-Status: $dmarc_text");
-
-        if ( $dmarc_result->result ne 'pass' ) {
-            my $disposition = $dmarc_result->disposition;
-            debug 'DMARC disposition' => $disposition;
-            reject 'Failed DMARC test.' if $disposition eq 'reject';
-        }
-    }
-}
-
-delete $ENV{QMAILQUEUE};    # use original qmail-queue
-$message->send == 0 or die "Error sending message: exit status $?\n";
-debug action => 'queue';
-
-END {
-    debug 'exit code' => $?;
-    say STDERR "$FindBin::Script\[$$]: " . join '; ', @debug;
-}
+Mail::Qmail::Filter->run;
 
 __END__
 
@@ -142,47 +19,9 @@ qmail-dmarc - verify using DMARC and queue a mail message for delivery
 
 qmail-dmarc is designed to be called by qmail-smtpd instead of qmail-queue
 and will verify if incoming e-mail conforms to the DMARC policy of its
-sender domain:
+sender domain.
 
-=over 4
-
-=item 1.
-
-If the environment variable C<RELAYCLIENT> exists, no verification is done,
-and the e-mail is immediately passed to C<qmail-queue>.
-
-=item 2.
-
-In any other case, we check if the message contains a valid DKIM signature
-matching the domain of the C<From:> header field.
-If this is the case, the e-mail is passed to C<qmail-queue>.
-
-=item 3.
-
-If not, a SPF check is done, and a C<Received-SPF:> header field is added to
-the message.
-Then we check if the message is aligned with its sender's DMARC policy.
-A C<DMARC-Status:> header field is added.
-
-If the message does not align to the policy, the policy advises to reject such
-messages and when the environment variable C<DMARC_REJECT> is set to a true
-value, the message will be rejected with C<554 Failed DMARC test.>
-
-=item 4.
-
-In any other case the message is passed on to C<qmail-queue>.
-
-=back
-
-Diagnostic messages are written as a single line to standard error,
-so you should find them in your C<qmail-smtpd>'s log.
-
-=head1 OPTIONS
-
-Apart from controlling the rejection of messages via the environment variable
-C<DMARC_REJECT>, none.
-It just works the way I need it.
-If you need it to operate in any other way, please let me know.
+For details, see L<Mail::Qmail::Filter::DMARC>.
 
 =head1 BUGS
 
