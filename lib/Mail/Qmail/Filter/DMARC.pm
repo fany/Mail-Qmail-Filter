@@ -3,11 +3,13 @@ use warnings;
 
 package Mail::Qmail::Filter::DMARC;
 
-our $VERSION = '1.0';
+our $VERSION = '1.1';
 
+use base 'Mail::Qmail::Filter';
+
+use Carp qw(croak);
 use Mail::DKIM::Verifier;
 use Mail::DMARC::PurePerl;
-use base 'Mail::Qmail::Filter';
 
 sub domain {
     shift =~ s/.*\@//r;
@@ -26,10 +28,19 @@ sub spf_query {
     $server->process($request);
 }
 
+my $reject = $ENV{DMARC_REJECT};
+
 use namespace::clean;
 
 sub import {
-    __PACKAGE__->register;
+    my $package = shift;
+    $package->register;
+    for (@_) {
+        if ( $_ eq ':reject' ) { $reject = 1 }
+        else {
+            croak "$package does not support feature $_";
+        }
+    }
 }
 
 sub run {
@@ -100,11 +111,13 @@ sub run {
                 my $disposition = $dmarc_result->disposition;
                 $filter->debug( 'DMARC disposition' => $disposition );
                 $filter->reject('Failed DMARC test.')
-                  if $disposition eq 'reject' && $ENV{DMARC_REJECT};
+                  if $disposition eq 'reject' && $reject;
             }
         }
     }
 }
+
+1;
 
 __END__
 
@@ -114,7 +127,7 @@ Mail::Qmail::Filter::DMARC - verify DMARC policy of mail message
 
 =head1 SYNOPSIS
 
-    use Mail::Qmail::Filter::DMARC;
+    use Mail::Qmail::Filter::DMARC ':reject';
 
     Mail::Qmail::Filter->run;
 
@@ -144,8 +157,9 @@ Then we check if the message is aligned with its sender's DMARC policy.
 A C<DMARC-Status:> header field is added.
 
 If the message does not align to the policy, the policy advises to reject such
-messages and when the environment variable C<DMARC_REJECT> is set to a true
-value, the message will be rejected with C<554 Failed DMARC test.>
+messages and when the plugin is C<use>d with the C<:reject> feature or the
+environment variable C<DMARC_REJECT> is set to a true value, the message will
+be rejected with C<554 Failed DMARC test.>
 
 =item 4.
 
@@ -155,10 +169,3 @@ In any other case the message is passed on to C<qmail-queue>.
 
 Diagnostic messages are written as a single line to standard error,
 so you should find them in your C<qmail-smtpd>'s log.
-
-=head1 OPTIONS
-
-Apart from controlling the rejection of messages via the environment variable
-C<DMARC_REJECT>, none.
-It just works the way I need it.
-If you need it to operate in any other way, please let me know.
