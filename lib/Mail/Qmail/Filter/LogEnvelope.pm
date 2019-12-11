@@ -30,7 +30,7 @@ sub run {
     $filter->debug( RELAYCLIENT => "$ENV{TCPREMOTEHOST} [$ENV{TCPREMOTEIP}]" )
       if exists $ENV{RELAYCLIENT};
     my $message = $filter->message;
-    $filter->debug( 'RFC5321.MailFrom' => $message->from );
+    $filter->debug( 'RFC5321.MailFrom' => $message->from || '<>' );
     $filter->debug( to => join ', ', $message->to );
 }
 
