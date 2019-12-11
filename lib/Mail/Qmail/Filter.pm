@@ -55,12 +55,6 @@ sub message {
 sub run {
     my $self = shift;
 
-    $self->debug( RELAYCLIENT => "$ENV{TCPREMOTEHOST} [$ENV{TCPREMOTEIP}]" )
-      if exists $ENV{RELAYCLIENT};
-    my $message = $self->message;
-    $self->debug( 'RFC5321.MailFrom' => $message->from );
-    $self->debug( to => join ', ', $message->to );
-
     for (@filters) {
         if ( exists $ENV{RELAYCLIENT} && $_->skip_if_relayclient ) {
             $self->debug( "$_ skipped" );
@@ -93,6 +87,7 @@ Mail::Qmail::Filter - filter e-mails in qmail-queue context
 
 =head1 SYNOPSIS
 
+    use Mail::Qmail::Filter::LogEnvelope;
     use Mail::Qmail::Filter::DMARC        qw(:skip_if_relayclient);
     use Mail::Qmail::Filter::SpamAssassin qw(:skip_if_relayclient :mark);
 
