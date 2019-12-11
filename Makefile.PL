@@ -25,6 +25,7 @@ WriteMakefile(
         'Mail::SpamAssassin'          => 0,
         'Mail::SPF'                   => 0,
         'namespace::clean'            => 0,
+        'Path::Tiny'                  => 0,
     },
     dist  => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean => { FILES    => 'App-Qmail-DMARC-*' },

@@ -31,6 +31,13 @@ sub import {
     }
 }
 
+sub dump_spam_to {
+    my $filter = shift;
+    state $dump_spam_to;
+    $dump_spam_to = shift if @_;
+    $dump_spam_to;
+}
+
 sub reply_text {
     my $filter = shift;
     state $reply_text = 'I think this message is spam.';
@@ -59,6 +66,12 @@ sub run {
     $filter->debug( 'spam score' => $status->get_score );
 
     if ( $status->is_spam ) {
+        if ( defined( my $dir = $filter->dump_spam_to ) ) {
+            require Path::Tiny and Path::Tiny->import('path')
+              unless defined &path;
+            path( $dir, my $file = "$^T.$$" )->spew($$body_ref);
+            $filter->debug( 'dumped message to' => $file );
+        }
         $filter->reject( $filter->reply_text ) if $reject;
         $$body_ref = $status->rewrite_mail if $mark;
     }
