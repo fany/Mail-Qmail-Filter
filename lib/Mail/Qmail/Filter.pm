@@ -43,6 +43,10 @@ $SIG{__DIE__} = sub {
     die @_;
 };
 
+sub is_relayclient {
+    exists $ENV{RELAYCLIENT};
+}
+
 sub message {
     state $message = MailX::Qmail::Queue::Message->receive
       or die "Invalid message\n";
@@ -51,15 +55,29 @@ sub message {
 sub run {
     my $self = shift;
 
+    $self->debug( RELAYCLIENT => "$ENV{TCPREMOTEHOST} [$ENV{TCPREMOTEIP}]" )
+      if exists $ENV{RELAYCLIENT};
     my $message = $self->message;
     $self->debug( 'RFC5321.MailFrom' => $message->from );
     $self->debug( to => join ', ', $message->to );
 
-    $_->run for @filters;
+    for (@filters) {
+        if ( exists $ENV{RELAYCLIENT} && $_->skip_if_relayclient ) {
+            $self->debug( "$_ skipped" );
+        }
+        else {
+            $self->debug( "$_ started" );
+            $_->run;
+        }
+    }
 
     delete $ENV{QMAILQUEUE};    # use original qmail-queue
     $self->message->send == 0 or die "Error sending message: exit status $?\n";
-    __PACKAGE__->debug( action => 'queue' );
+    $self->debug( action => 'queue' );
+}
+
+sub skip_if_relayclient {
+    '';
 }
 
 END {
@@ -75,8 +93,8 @@ Mail::Qmail::Filter - filter e-mails in qmail-queue context
 
 =head1 SYNOPSIS
 
-    use Mail::Qmail::Filter::DMARC;
-    use Mail::Qmail::Filter::SpamAssassin qw(:mark);
+    use Mail::Qmail::Filter::DMARC        qw(:skip_if_relayclient);
+    use Mail::Qmail::Filter::SpamAssassin qw(:skip_if_relayclient :mark);
 
     Mail::Qmail::Filter->run;
 
@@ -98,3 +116,8 @@ if it is not rejected by one of the filters.
 
 Register a filter plugin module to be run by the L</-E<gt>run> method.
 Is usually called by the C<-E<gt>init> method of the filter plugin.
+
+=head2 ->is_relayclient
+
+Returns a true value only if the script is being called by a RELAYCLIENT,
+that is, if the environment variable RELAYCLIENT is defined.
