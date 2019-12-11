@@ -3,13 +3,18 @@ use warnings;
 
 package Mail::Qmail::Filter::SpamAssassin;
 
-our $VERSION = '1.0';
+our $VERSION = '1.1';
 
 use base 'Mail::Qmail::Filter';
 
 use Carp qw(croak);
 
-my ( $mark, $reject, $skip_if_relayclient );
+sub normalize_addr {
+    my ( $localpart, $domain ) = split /\@/, shift, 2;
+    "$localpart\@\L$domain";
+}
+
+my ( $mark, $reject, %skip_for_rcpt, $skip_if_relayclient );
 
 use namespace::clean;
 
@@ -27,15 +32,24 @@ sub import {
 }
 
 sub reply_text {
-    my $package = shift;
+    my $filter = shift;
     state $reply_text = 'I think this message is spam.';
-    $reply_text = shift if @_;
+    $reply_text = shift =~ y/\n/ /r if @_;
     $reply_text;
 }
 
 sub run {
-    my $filter   = shift;
-    my $message  = $filter->message;
+    my $filter  = shift;
+    my $message = $filter->message;
+
+    if ( keys %skip_for_rcpt ) {
+        for ( $message->to ) {
+            next unless exists $skip_for_rcpt{ normalize_addr $_};
+            $filter->debug( 'skipped because of rcpt', $_ );
+            return;
+        }
+    }
+
     my $body_ref = $message->body_ref;
 
     require Mail::SpamAssassin;    # lazy load because filter might be skipped
@@ -48,6 +62,11 @@ sub run {
         $filter->reject( $filter->reply_text ) if $reject;
         $$body_ref = $status->rewrite_mail if $mark;
     }
+}
+
+sub skip_for_rcpt {
+    my $filter = shift;
+    @skip_for_rcpt{ map normalize_addr($_), @_ } = ();
 }
 
 sub skip_if_relayclient {
