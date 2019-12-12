@@ -72,6 +72,7 @@ sub run {
             path( $dir, my $file = join '_', $^T, $$, $score )
               ->spew($$body_ref);
             $filter->debug( 'dumped message to' => $file );
+            path( $dir, $file . '_report' )->spew( $status->get_report );
         }
         $filter->reject( $filter->reply_text ) if $reject;
         $$body_ref = $status->rewrite_mail if $mark;
