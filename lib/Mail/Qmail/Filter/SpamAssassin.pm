@@ -14,7 +14,7 @@ sub normalize_addr {
     "$localpart\@\L$domain";
 }
 
-my ( $mark, $reject, %skip_for_rcpt, $skip_if_relayclient );
+my ( $mark, $reject_score, %skip_for_rcpt, $skip_if_relayclient );
 
 use namespace::clean;
 
@@ -23,7 +23,7 @@ sub import {
     $package->register;
     for (@_) {
         if    ( $_ eq ':mark' )                { $mark                = 1 }
-        elsif ( $_ eq ':reject' )              { $reject              = 1 }
+        elsif ( $_ eq ':reject' )              { $reject_score        = 5 }
         elsif ( $_ eq ':skip_if_relayclient' ) { $skip_if_relayclient = 1 }
         else {
             croak qw($package does not support feature $_);
@@ -36,6 +36,12 @@ sub dump_spam_to {
     state $dump_spam_to;
     $dump_spam_to = shift if @_;
     $dump_spam_to;
+}
+
+sub reject_score {
+    my $filter = shift;
+    $reject_score = shift if @_;
+    $reject_score;
 }
 
 sub reply_text {
@@ -74,7 +80,8 @@ sub run {
             $filter->debug( 'dumped message to' => $file );
             path( $dir, $file . '_report' )->spew( $status->get_report );
         }
-        $filter->reject( $filter->reply_text ) if $reject;
+        $filter->reject( $filter->reply_text )
+          if $reject_score && $score >= $reject_score;
         $$body_ref = $status->rewrite_mail if $mark;
     }
 }
