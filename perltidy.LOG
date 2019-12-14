@@ -1,0 +1,45 @@
+perltidy version 20180220 log file on a linux system, OLD_PERL_VERSION=5.026001
+Configuration and command line parameters for this run:
+
+To find error messages search for 'WARNING' with your editor
+Indentation will be with 4 spaces
+Line 1 implies starting-indentation-level = 0
+
+########################  WARNING  #########################
+There is no previous '{' to match a '}' on line 38
+38: }
+    ^
+############################################################
+WARNING: Starting negative indentation
+WARNING: final indentation level: -1
+Suggest including 'use strict;'
+passing VERSION line; -npvl deactivates
+The nesting depths in the table below are at the start of the lines.
+The indicated output line numbers are not always exact.
+ci = levels of continuation indentation; bk = 1 if in BLOCK, 0 if not.
+
+in:out indent c b  nesting   code + messages; (messages begin with >>>)
+lines  levels i k            (code begins with one '.' per indent level)
+------  ----- - - --------   -------------------------------------------
+L4:4     i0:0 0 1            package Mail::Qmail::Filter::SkipQu ....
+L11:11   i0:0 0 1            sub filter {
+L26:25   i2:2 0 1 {{         >>>(No else block)
+L30:29   i2:1 0 1 {          >>>Start indentation disagreement: input=2; output=1
+L38:37   i0:-1 0 1            >>>WARNING: Program bug in scan_list: hit nesting error which should have been caught
+L40:40   i0:-1 0 1 }          >>>Last line
+
+First indentation disagreement seen at input line 30
+Ending with indentation disagreement which started at input line 30
+Note: Indentation disagreement detection is not accurate for outdenting and -lp.
+
+No lines exceeded 80 characters
+  Maximum output line length was 77 at line 23
+WARNING: To save a full .LOG file rerun with -g
+WARNING: 
+Oops, you seem to have encountered a bug in perltidy.  Please check the
+BUGS file at http://perltidy.sourceforge.net.  If the problem is not
+listed there, please report it so that it can be corrected.  Include the
+smallest possible script which produces this message, along with the
+.LOG file if appropriate.  See the manual pages for contact information.
+Your efforts are appreciated.  
+Thank you!

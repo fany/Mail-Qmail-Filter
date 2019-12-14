@@ -97,7 +97,7 @@ sub run {
 
     if ( my $skip_for_rcpt = $self->skip_for_rcpt ) {
         for ( $self->message->to ) {
-            next unless exists $skip_for_rcpt->{ normalize_addr $_};
+            next unless exists $skip_for_rcpt->{ normalize_addr($_) };
             $self->debug( "$package skipped because of rcpt", $_ );
             return;
         }

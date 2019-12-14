@@ -17,6 +17,7 @@ WriteMakefile(
         'Test::More' => '0',
     },
     PREREQ_PM => {
+        'Capture::Tiny'               => 0,
         'Mail::Address'               => 0,
         'Mail::DKIM::Verifier'        => 0,
         'Mail::DMARC::PurePerl'       => 0,
