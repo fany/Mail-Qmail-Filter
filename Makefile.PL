@@ -24,6 +24,7 @@ WriteMakefile(
         'Mail::Qmail::Queue::Message' => 0,
         'Mail::SpamAssassin'          => 0,
         'Mail::SPF'                   => 0,
+        'Mo'                          => 0,
         'namespace::clean'            => 0,
         'Path::Tiny'                  => 0,
     },

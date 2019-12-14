@@ -5,10 +5,6 @@ package Mail::Qmail::Filter::DMARC;
 
 our $VERSION = '1.1';
 
-use base 'Mail::Qmail::Filter';
-
-use Carp qw(croak);
-
 sub domain {
     shift =~ s/.*\@//r;
 }
@@ -26,45 +22,35 @@ sub spf_query {
     $server->process($request);
 }
 
-my $reject = $ENV{DMARC_REJECT};
-my $skip_if_relayclient;
-
 use namespace::clean;
 
-sub import {
-    my $package = shift;
-    $package->register;
-    for (@_) {
-        if ( $_ eq ':reject' ) { $reject = 1 }
-        elsif ( $_ eq ':skip_if_relayclient' ) { $skip_if_relayclient = 1 }
-        else {
-            croak "$package does not support feature $_";
-        }
-    }
-}
+use Mo;
+extends 'Mail::Qmail::Filter';
+
+has 'reject';
 
 sub run {
-    my $filter  = shift;
-    my $message = $filter->message;
+    my $self  = shift;
+    my $message = $self->message;
 
     require Mail::DKIM::Verifier;    # lazy load because filter might be skipped
     my $dkim = Mail::DKIM::Verifier->new;
     $dkim->PRINT( $message->body =~ s/\cM?\cJ/\cM\cJ/gr );
     $dkim->CLOSE;
-    $filter->debug( 'DKIM result' => $dkim->result );
+    $self->debug( 'DKIM result' => $dkim->result );
 
     if ( $dkim->result ne 'pass' ) {
 
-        $filter->debug( 'Remote IP' => $ENV{TCPREMOTEIP} );
+        $self->debug( 'Remote IP' => $ENV{TCPREMOTEIP} );
 
         my %spf_query = ( ip_address => $ENV{TCPREMOTEIP} );
 
-        $filter->debug( helo => $spf_query{helo_identity} = $message->helo );
+        $self->debug( helo => $spf_query{helo_identity} = $message->helo );
 
         my $header_from = $message->header_from;
         my $header_from_domain;
         if ($header_from) {
-            $filter->debug( 'RFC5322.From' => $spf_query{identity} =
+            $self->debug( 'RFC5322.From' => $spf_query{identity} =
                   $header_from->address );
             $header_from_domain = $header_from->host;
             $spf_query{scope} = 'mfrom';
@@ -76,7 +62,7 @@ sub run {
             $spf_query{identity} = $spf_query{helo_identity};
         }
 
-        $filter->debug( 'SPF result' => my $spf_result =
+        $self->debug( 'SPF result' => my $spf_result =
               spf_query(%spf_query) );
         $message->add_header( $spf_result->received_spf_header );
 
@@ -95,20 +81,16 @@ sub run {
                 },
             )->validate
         )->result;
-        $filter->debug( 'DMARC result' => $dmarc_text );
+        $self->debug( 'DMARC result' => $dmarc_text );
         $message->add_header("DMARC-Status: $dmarc_text");
 
         if ( $dmarc_result->result ne 'pass' ) {
             my $disposition = $dmarc_result->disposition;
-            $filter->debug( 'DMARC disposition' => $disposition );
-            $filter->reject('Failed DMARC test.')
-              if $disposition eq 'reject' && $reject;
+            $self->debug( 'DMARC disposition' => $disposition );
+            $self->reject('Failed DMARC test.')
+              if $disposition eq 'reject' && $self->reject;
         }
     }
-}
-
-sub skip_if_relayclient {
-    $skip_if_relayclient;
 }
 
 1;

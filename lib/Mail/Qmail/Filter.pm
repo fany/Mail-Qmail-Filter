@@ -7,6 +7,7 @@ our $VERSION = '1.0';
 
 use IO::Handle;
 use MailX::Qmail::Queue::Message;
+use Mo qw(default);
 
 my $feedback_fh;
 
@@ -16,7 +17,13 @@ BEGIN {
       or warn "Cannot open feedback handle: $!";
 }
 
+use Carp qw(confess);
 use FindBin ();
+
+use namespace::clean;
+
+has 'filters' => [];
+has 'skip_if_relayclient';
 
 my @debug;
 
@@ -25,10 +32,18 @@ sub debug {
     push @debug, join ': ', @_;
 }
 
-my @filters;
+$SIG{__DIE__} //= sub {
+    __PACKAGE__->debug( died => "@_" ) unless $^S;
+    die @_;
+};
 
-sub register {
-    push @filters, shift;
+sub add_filter {
+    my ( $self, $type, @opt ) = @_;
+    $type = __PACKAGE__ . "::$type" if $type !~ /::/;
+    eval "use $type";
+    confess $@ if length $@;
+    push @{ $self->{filters} }, $type->new(@opt);
+    $self;
 }
 
 sub reject {
@@ -36,15 +51,6 @@ sub reject {
     $feedback_fh->print("D@_");
     $self->debug( action => 'reject' );
     exit 88;
-}
-
-$SIG{__DIE__} = sub {
-    __PACKAGE__->debug( died => "@_" ) unless $^S;
-    die @_;
-};
-
-sub is_relayclient {
-    exists $ENV{RELAYCLIENT};
 }
 
 sub message {
@@ -55,12 +61,13 @@ sub message {
 sub run {
     my $self = shift;
 
-    for (@filters) {
+    for ( @{ $self->filters } ) {
+        my $package = ref;
         if ( exists $ENV{RELAYCLIENT} && $_->skip_if_relayclient ) {
-            $self->debug( "$_ skipped" );
+            $self->debug("$package skipped");
         }
         else {
-            $self->debug( "$_ started" );
+            $self->debug("$package started");
             $_->run;
         }
     }
@@ -68,10 +75,6 @@ sub run {
     delete $ENV{QMAILQUEUE};    # use original qmail-queue
     $self->message->send == 0 or die "Error sending message: exit status $?\n";
     $self->debug( action => 'queue' );
-}
-
-sub skip_if_relayclient {
-    '';
 }
 
 END {

@@ -5,94 +5,63 @@ package Mail::Qmail::Filter::SpamAssassin;
 
 our $VERSION = '1.1';
 
-use base 'Mail::Qmail::Filter';
-
-use Carp qw(croak);
-
 sub normalize_addr {
     my ( $localpart, $domain ) = split /\@/, shift, 2;
     "$localpart\@\L$domain";
 }
 
-my ( $mark, $reject_score, %skip_for_rcpt, $skip_if_relayclient );
-
 use namespace::clean;
 
-sub import {
-    my $package = shift;
-    $package->register;
-    for (@_) {
-        if    ( $_ eq ':mark' )                { $mark                = 1 }
-        elsif ( $_ eq ':reject' )              { $reject_score        = 5 }
-        elsif ( $_ eq ':skip_if_relayclient' ) { $skip_if_relayclient = 1 }
-        else {
-            croak qw($package does not support feature $_);
-        }
-    }
-}
+use Mo qw(coerce default);
+extends 'Mail::Qmail::Filter';
 
-sub dump_spam_to {
-    my $filter = shift;
-    state $dump_spam_to;
-    $dump_spam_to = shift if @_;
-    $dump_spam_to;
-}
-
-sub reject_score {
-    my $filter = shift;
-    $reject_score = shift if @_;
-    $reject_score;
-}
-
-sub reply_text {
-    my $filter = shift;
-    state $reply_text = 'I think this message is spam.';
-    $reply_text = shift =~ y/\n/ /r if @_;
-    $reply_text;
-}
+has 'dump_spam_to';
+has 'mark';
+has 'reject_score';
+has 'reject_text' => 'I think this message is spam.';
+has 'skip_for_rcpt' => coerce => sub {
+    my $addrs = shift;
+    $addrs = [$addrs] unless ref $addrs;
+    my %skip_for_rcpt;
+    $skip_for_rcpt{ normalize_addr($_) } = undef
+      for ref $addrs ? @$addrs : $addrs;
+    \%skip_for_rcpt;
+};
 
 sub run {
-    my $filter  = shift;
-    my $message = $filter->message;
-
-    if ( keys %skip_for_rcpt ) {
-        for ( $message->to ) {
-            next unless exists $skip_for_rcpt{ normalize_addr $_};
-            $filter->debug( 'skipped because of rcpt', $_ );
-            return;
+    my $self    = shift;
+    my $message = $self->message;
+    {
+        my $skip_for_rcpt = $self->skip_for_rcpt;
+        if ( keys %$skip_for_rcpt ) {
+            for ( $message->to ) {
+                next unless exists $skip_for_rcpt->{ normalize_addr $_};
+                $self->debug( 'skipped because of rcpt', $_ );
+                return;
+            }
         }
     }
-
     my $body_ref = $message->body_ref;
 
     require Mail::SpamAssassin;    # lazy load because filter might be skipped
     my $sa     = Mail::SpamAssassin->new;
     my $mail   = $sa->parse($body_ref);
     my $status = $sa->check($mail);
-    $filter->debug( 'spam score' => my $score = $status->get_score );
+    $self->debug( 'spam score' => my $score = $status->get_score );
 
     if ( $status->is_spam ) {
-        if ( defined( my $dir = $filter->dump_spam_to ) ) {
+        if ( defined( my $dir = $self->dump_spam_to ) ) {
             require Path::Tiny and Path::Tiny->import('path')
               unless defined &path;
             path( $dir, my $file = join '_', $^T, $$, $score )
               ->spew($$body_ref);
-            $filter->debug( 'dumped message to' => $file );
+            $self->debug( 'dumped message to' => $file );
             path( $dir, $file . '_report' )->spew( $status->get_report );
         }
-        $filter->reject( $filter->reply_text )
-          if $reject_score && $score >= $reject_score;
-        $$body_ref = $status->rewrite_mail if $mark;
+        $self->reject( $self->reject_text =~ y/\n/ /r )
+          if $self->reject_score && $score >= $self->reject_score;
+        $$body_ref = $status->rewrite_mail if $self->mark;
     }
-}
-
-sub skip_for_rcpt {
-    my $filter = shift;
-    @skip_for_rcpt{ map normalize_addr($_), @_ } = ();
-}
-
-sub skip_if_relayclient {
-    $skip_if_relayclient;
 }
 
 1;
