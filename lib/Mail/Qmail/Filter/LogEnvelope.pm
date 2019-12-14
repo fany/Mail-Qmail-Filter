@@ -3,7 +3,7 @@ use warnings;
 
 package Mail::Qmail::Filter::LogEnvelope;
 
-our $VERSION = '1.0';
+our $VERSION = '2.0';
 
 use Mo;
 extends 'Mail::Qmail::Filter';
@@ -12,7 +12,7 @@ use Carp qw(croak);
 
 use namespace::clean;
 
-sub run {
+sub filter {
     my $self = shift;
 
     $self->debug( RELAYCLIENT => "$ENV{TCPREMOTEHOST} [$ENV{TCPREMOTEIP}]" )

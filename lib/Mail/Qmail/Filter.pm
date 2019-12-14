@@ -3,7 +3,7 @@ use warnings;
 
 package Mail::Qmail::Filter;
 
-our $VERSION = '1.0';
+our $VERSION = '2.0';
 
 use IO::Handle;
 use MailX::Qmail::Queue::Message;
@@ -46,6 +46,16 @@ sub add_filter {
     $self;
 }
 
+sub filter {
+    my $self = shift;
+
+    $_->run for @{ $self->filters };
+
+    delete $ENV{QMAILQUEUE};    # use original qmail-queue
+    $self->message->send == 0 or die "Error sending message: exit status $?\n";
+    $self->debug( action => 'queue' );
+}
+
 sub reject {
     my $self = shift;
     $feedback_fh->print("D@_");
@@ -61,20 +71,14 @@ sub message {
 sub run {
     my $self = shift;
 
-    for ( @{ $self->filters } ) {
-        my $package = ref;
-        if ( exists $ENV{RELAYCLIENT} && $_->skip_if_relayclient ) {
-            $self->debug("$package skipped");
-        }
-        else {
-            $self->debug("$package started");
-            $_->run;
-        }
+    my $package = ref $self;
+    if ( exists $ENV{RELAYCLIENT} && $self->skip_if_relayclient ) {
+        $self->debug("$package skipped");
     }
-
-    delete $ENV{QMAILQUEUE};    # use original qmail-queue
-    $self->message->send == 0 or die "Error sending message: exit status $?\n";
-    $self->debug( action => 'queue' );
+    else {
+        $self->debug("$package started");
+        $self->filter;
+    }
 }
 
 END {

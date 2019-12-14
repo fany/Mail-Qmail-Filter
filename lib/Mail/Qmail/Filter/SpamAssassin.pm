@@ -3,7 +3,7 @@ use warnings;
 
 package Mail::Qmail::Filter::SpamAssassin;
 
-our $VERSION = '1.1';
+our $VERSION = '2.0';
 
 sub normalize_addr {
     my ( $localpart, $domain ) = split /\@/, shift, 2;
@@ -28,7 +28,7 @@ has 'skip_for_rcpt' => coerce => sub {
     \%skip_for_rcpt;
 };
 
-sub run {
+sub filter {
     my $self    = shift;
     my $message = $self->message;
     {

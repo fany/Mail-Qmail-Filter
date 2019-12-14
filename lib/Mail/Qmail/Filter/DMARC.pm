@@ -3,7 +3,7 @@ use warnings;
 
 package Mail::Qmail::Filter::DMARC;
 
-our $VERSION = '1.1';
+our $VERSION = '2.0';
 
 sub domain {
     shift =~ s/.*\@//r;
@@ -29,7 +29,7 @@ extends 'Mail::Qmail::Filter';
 
 has 'reject';
 
-sub run {
+sub filter {
     my $self  = shift;
     my $message = $self->message;
 
