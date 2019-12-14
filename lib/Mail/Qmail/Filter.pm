@@ -5,24 +5,41 @@ package Mail::Qmail::Filter;
 
 our $VERSION = '2.0';
 
-use IO::Handle;
+use Carp qw(confess);
+use FindBin    ();
+use IO::Handle ();
 use MailX::Qmail::Queue::Message;
-use Mo qw(default);
 
-my $feedback_fh;
+sub normalize_addr {
+    my ( $localpart, $domain ) = split /\@/, shift, 2;
+    "$localpart\@\L$domain";
+}
+
+use namespace::clean;
+
+# Must be under namespace::clean for coercion to work:
+use Mo qw(coerce default);
+
+my $feedback_fh;    # Open ASAP before the handle gets reused:
 
 BEGIN {
-    # Open ASAP before the handle gets reused:
     $feedback_fh = IO::Handle->new_from_fd( 4, 'w' )
       or warn "Cannot open feedback handle: $!";
 }
 
-use Carp qw(confess);
-use FindBin ();
-
-use namespace::clean;
+has feedback_fh => $feedback_fh;
 
 has 'filters' => [];
+
+has 'skip_for_rcpt' => coerce => sub {
+    my $addrs = shift;
+    $addrs = [$addrs] unless ref $addrs;
+    my %skip_for_rcpt;
+    $skip_for_rcpt{ normalize_addr($_) } = undef
+      for ref $addrs ? @$addrs : $addrs;
+    \%skip_for_rcpt;
+};
+
 has 'skip_if_relayclient';
 
 my @debug;
@@ -56,29 +73,38 @@ sub filter {
     $self->debug( action => 'queue' );
 }
 
-sub reject {
-    my $self = shift;
-    $feedback_fh->print("D@_");
-    $self->debug( action => 'reject' );
-    exit 88;
-}
-
 sub message {
     state $message = MailX::Qmail::Queue::Message->receive
       or die "Invalid message\n";
+}
+
+sub reject {
+    my $self = shift;
+    $self->feedback_fh->print("D@_");
+    $self->debug( action => 'reject' );
+    exit 88;
 }
 
 sub run {
     my $self = shift;
 
     my $package = ref $self;
+
     if ( exists $ENV{RELAYCLIENT} && $self->skip_if_relayclient ) {
         $self->debug("$package skipped");
+        return;
     }
-    else {
-        $self->debug("$package started");
-        $self->filter;
+
+    if ( my $skip_for_rcpt = $self->skip_for_rcpt ) {
+        for ( $self->message->to ) {
+            next unless exists $skip_for_rcpt->{ normalize_addr $_};
+            $self->debug( "$package skipped because of rcpt", $_ );
+            return;
+        }
     }
+
+    $self->debug("$package started");
+    $self->filter;
 }
 
 END {

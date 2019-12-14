@@ -28,9 +28,10 @@ use Mo;
 extends 'Mail::Qmail::Filter';
 
 has 'reject';
+has 'reject_text' => 'Failed DMARC test.';
 
 sub filter {
-    my $self  = shift;
+    my $self    = shift;
     my $message = $self->message;
 
     require Mail::DKIM::Verifier;    # lazy load because filter might be skipped
@@ -62,8 +63,7 @@ sub filter {
             $spf_query{identity} = $spf_query{helo_identity};
         }
 
-        $self->debug( 'SPF result' => my $spf_result =
-              spf_query(%spf_query) );
+        $self->debug( 'SPF result' => my $spf_result = spf_query(%spf_query) );
         $message->add_header( $spf_result->received_spf_header );
 
         require Mail::DMARC::PurePerl;
@@ -87,7 +87,7 @@ sub filter {
         if ( $dmarc_result->result ne 'pass' ) {
             my $disposition = $dmarc_result->disposition;
             $self->debug( 'DMARC disposition' => $disposition );
-            $self->reject('Failed DMARC test.')
+            $self->reject( $self->reject_text )
               if $disposition eq 'reject' && $self->reject;
         }
     }

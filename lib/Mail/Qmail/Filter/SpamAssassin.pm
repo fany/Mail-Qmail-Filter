@@ -5,42 +5,17 @@ package Mail::Qmail::Filter::SpamAssassin;
 
 our $VERSION = '2.0';
 
-sub normalize_addr {
-    my ( $localpart, $domain ) = split /\@/, shift, 2;
-    "$localpart\@\L$domain";
-}
-
-use namespace::clean;
-
-use Mo qw(coerce default);
+use Mo qw(default);
 extends 'Mail::Qmail::Filter';
 
 has 'dump_spam_to';
 has 'mark';
 has 'reject_score';
 has 'reject_text' => 'I think this message is spam.';
-has 'skip_for_rcpt' => coerce => sub {
-    my $addrs = shift;
-    $addrs = [$addrs] unless ref $addrs;
-    my %skip_for_rcpt;
-    $skip_for_rcpt{ normalize_addr($_) } = undef
-      for ref $addrs ? @$addrs : $addrs;
-    \%skip_for_rcpt;
-};
 
 sub filter {
-    my $self    = shift;
-    my $message = $self->message;
-    {
-        my $skip_for_rcpt = $self->skip_for_rcpt;
-        if ( keys %$skip_for_rcpt ) {
-            for ( $message->to ) {
-                next unless exists $skip_for_rcpt->{ normalize_addr $_};
-                $self->debug( 'skipped because of rcpt', $_ );
-                return;
-            }
-        }
-    }
+    my $self     = shift;
+    my $message  = $self->message;
     my $body_ref = $message->body_ref;
 
     require Mail::SpamAssassin;    # lazy load because filter might be skipped

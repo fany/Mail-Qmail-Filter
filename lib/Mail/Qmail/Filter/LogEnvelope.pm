@@ -8,10 +8,6 @@ our $VERSION = '2.0';
 use Mo;
 extends 'Mail::Qmail::Filter';
 
-use Carp qw(croak);
-
-use namespace::clean;
-
 sub filter {
     my $self = shift;
 
