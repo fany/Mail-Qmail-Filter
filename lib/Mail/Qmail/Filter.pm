@@ -10,6 +10,15 @@ use FindBin    ();
 use IO::Handle ();
 use MailX::Qmail::Queue::Message;
 
+sub addresses2hash {
+    my $addrs = shift;
+    $addrs = [$addrs] unless ref $addrs;
+    my %skip_for_rcpt;
+    $skip_for_rcpt{ normalize_addr($_) } = undef
+      for ref $addrs ? @$addrs : $addrs;
+    \%skip_for_rcpt;
+}
+
 sub normalize_addr {
     my ( $localpart, $domain ) = split /\@/, shift, 2;
     "$localpart\@\L$domain";
@@ -27,19 +36,11 @@ BEGIN {
       or warn "Cannot open feedback handle: $!";
 }
 
-has feedback_fh => $feedback_fh;
-
-has 'filters' => [];
-
-has 'skip_for_rcpt' => coerce => sub {
-    my $addrs = shift;
-    $addrs = [$addrs] unless ref $addrs;
-    my %skip_for_rcpt;
-    $skip_for_rcpt{ normalize_addr($_) } = undef
-      for ref $addrs ? @$addrs : $addrs;
-    \%skip_for_rcpt;
-};
-
+has 'feedback_fh'     => $feedback_fh;
+has 'filters'         => [];
+has 'skip_for_from'   => coerce => \&addresses2hash;
+has 'skip_for_rcpt'   => coerce => \&addresses2hash;
+has 'skip_for_sender' => coerce => \&addresses2hash;
 has 'skip_if_relayclient';
 
 my @debug;
@@ -96,6 +97,22 @@ sub run {
     if ( exists $ENV{RELAYCLIENT} && $self->skip_if_relayclient ) {
         $self->debug("$package skipped");
         return;
+    }
+
+    if ( my $skip_for_sender = $self->skip_for_sender ) {
+        if ( exists $skip_for_sender->{ my $sender = $self->message->from } ) {
+            $self->debug( "$package skipped because of sender", $sender );
+            return;
+        }
+    }
+
+    if (   ( my $skip_for_from = $self->skip_for_from )
+        && ( my $from = $self->message->header_from ) )
+    {
+        if ( exists $skip_for_from->{ $from = $from->address } ) {
+            $self->debug( "$package skipped because of RFC5322.From", $from );
+            return;
+        }
     }
 
     if ( my $skip_for_rcpt = $self->skip_for_rcpt ) {

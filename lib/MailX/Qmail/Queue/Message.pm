@@ -11,7 +11,7 @@ use Mail::Address;
 use Mail::Header;
 
 # Use inside-out attributes to avoid interference with base class:
-my %header;
+my ( %from, %header );
 
 sub header {
     my $self = shift;
@@ -21,9 +21,11 @@ sub header {
 }
 
 sub header_from {
-    my $from = shift->header->get('From') or return;
-    ($from) = Mail::Address->parse($from);
-    $from;
+    my $self = shift;
+    return $from{$self} if exists $from{$self};
+    $from{$self} = $self->header->get('From') or return;
+    ( $from{$self} ) = Mail::Address->parse( $from{$self} );
+    $from{$self};
 }
 
 sub helo {
@@ -42,6 +44,7 @@ sub add_header {
 
 sub DESTROY {
     my $self = shift;
+    delete $from{$self};
     delete $header{$self};
 }
 

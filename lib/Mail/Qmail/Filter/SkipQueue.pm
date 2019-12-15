@@ -11,13 +11,12 @@ extends 'Mail::Qmail::Filter';
 sub filter {
     my $self    = shift;
     my $message = $self->message;
-    my @to      = $message->to;
 
     require Qmail::Deliverable and Qmail::Deliverable->import('dot_qmail')
       unless defined &dot_qmail;
 
     my $dot_qmail;
-    for (@to) {
+    for ( $message->to ) {
         my $_dot_qmail = dot_qmail($_)
           or return $self->debug( 'No .qmail file found for rcpt' => $_ );
         $self->debug( 'using file' => $_dot_qmail );
@@ -27,7 +26,7 @@ sub filter {
     }
 
     open my $fh, '<', $dot_qmail
-      or return $self->debug( 'Cannot read $dot_qmail', $! );
+      or return $self->debug( "Cannot read $dot_qmail", $! );
 
     my @commands;
     while ( defined( my $line = <$fh> ) ) {
