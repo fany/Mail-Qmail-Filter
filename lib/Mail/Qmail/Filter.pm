@@ -55,11 +55,14 @@ $SIG{__DIE__} //= sub {
 };
 
 sub add_filter {
-    my ( $self, $type, @opt ) = @_;
-    $type = __PACKAGE__ . "::$type" if $type !~ /::/;
-    eval "use $type";
-    confess $@ if length $@;
-    push @{ $self->{filters} }, $type->new(@opt);
+    my $self = shift;
+    while ( defined( my $type = shift ) ) {
+        my $opt = shift if @_ && ref $_[0];
+        $type = __PACKAGE__ . $type if $type =~ /^::/;
+        eval "use $type";
+        confess $@ if length $@;
+        push @{ $self->{filters} }, $type->new(%$opt);
+    }
     $self;
 }
 
