@@ -24,7 +24,7 @@ sub spf_query {
 
 use namespace::clean;
 
-use Mo;
+use Mo qw(coerce);
 extends 'Mail::Qmail::Filter';
 
 has 'reject';

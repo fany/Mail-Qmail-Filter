@@ -5,7 +5,7 @@ package Mail::Qmail::Filter::SkipQueue;
 
 our $VERSION = '1.0';
 
-use Mo;
+use Mo qw(coerce);
 extends 'Mail::Qmail::Filter';
 
 sub filter {

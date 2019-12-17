@@ -11,21 +11,23 @@ use Mail::Address;
 use Mail::Header;
 
 # Use inside-out attributes to avoid interference with base class:
-my ( %from, %header );
+my(%header,%body);
 
 sub header {
     my $self = shift;
     return $header{$self} if exists $header{$self};
     open my $fh, '<', $self->body_ref or die 'Cannot read message';
     $header{$self} = Mail::Header->new($fh);
+    local $/;
+    $body{$self} = <$fh>;
+    $header{$self};
 }
 
 sub header_from {
     my $self = shift;
-    return $from{$self} if exists $from{$self};
-    $from{$self} = $self->header->get('From') or return;
-    ( $from{$self} ) = Mail::Address->parse( $from{$self} );
-    $from{$self};
+    my $from = $self->header->get('From') or return;
+    ($from) = Mail::Address->parse($from);
+    $from;
 }
 
 sub helo {
@@ -40,12 +42,23 @@ sub helo {
 sub add_header {
     my $self = shift;
     ${$self->body_ref} = join "\n", @_, $self->body;
+    delete $header{$self};
+    $self;
+}
+
+sub replace_header {
+    my ( $self, $header ) = @_;
+    $self->header unless exists $body{$self};    # force parsing
+    $header = $header->as_string if ref $header && $header->can('as_string');
+    ${ $self->body_ref } = join "\n", $header, $body{$self};
+    delete $header{$self};
+    $self;
 }
 
 sub DESTROY {
     my $self = shift;
-    delete $from{$self};
     delete $header{$self};
+    delete $body{$self};
 }
 
 1;

@@ -13,15 +13,36 @@ use MailX::Qmail::Queue::Message;
 sub addresses2hash {
     my $addrs = shift;
     $addrs = [$addrs] unless ref $addrs;
-    my %skip_for_rcpt;
-    $skip_for_rcpt{ normalize_addr($_) } = undef
-      for ref $addrs ? @$addrs : $addrs;
-    \%skip_for_rcpt;
+    my %struct;
+    for ( ref $addrs ? @$addrs : $addrs ) {
+        my ( $localpart, $domain ) = split_addr($_);
+        unless ( length $localpart ) {
+            $struct{$domain} = '';    # match for whole domain
+        }
+        else {
+            my $slot = $struct{$domain} //= {};
+            $slot->{$localpart} = '' if ref $slot;
+        }
+    }
+    \%struct;
 }
 
-sub normalize_addr {
-    my ( $localpart, $domain ) = split /\@/, shift, 2;
-    "$localpart\@\L$domain";
+sub match_addr {
+    my ( $struct,    $addr )   = @_;
+    my ( $localpart, $domain ) = split_addr($addr);
+    defined( my $slot = $struct->{$domain} ) or return;
+    !ref $slot || !length $localpart || defined $slot->{$localpart};
+}
+
+sub split_addr {
+    my $addr = shift;
+    if ( $addr =~ /\@/ ) {
+        my ( $localpart, $domain ) = split /\@/, $addr, 2;
+        $localpart, lc $domain;
+    }
+    else {
+        undef, lc $addr;
+    }
 }
 
 use namespace::clean;
@@ -100,7 +121,8 @@ sub run {
     }
 
     if ( my $skip_for_sender = $self->skip_for_sender ) {
-        if ( exists $skip_for_sender->{ my $sender = $self->message->from } ) {
+        if ( match_addr( $skip_for_sender, my $sender = $self->message->from ) )
+        {
             $self->debug( "$package skipped because of sender", $sender );
             return;
         }
@@ -109,7 +131,7 @@ sub run {
     if (   ( my $skip_for_from = $self->skip_for_from )
         && ( my $from = $self->message->header_from ) )
     {
-        if ( exists $skip_for_from->{ $from = $from->address } ) {
+        if ( match_addr( $skip_for_from, $from = $from->address ) ) {
             $self->debug( "$package skipped because of RFC5322.From", $from );
             return;
         }
@@ -117,7 +139,7 @@ sub run {
 
     if ( my $skip_for_rcpt = $self->skip_for_rcpt ) {
         for ( $self->message->to ) {
-            next unless exists $skip_for_rcpt->{ normalize_addr($_) };
+            next unless match_addr( $skip_for_rcpt, $_ );
             $self->debug( "$package skipped because of rcpt", $_ );
             return;
         }

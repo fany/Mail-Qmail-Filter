@@ -5,7 +5,7 @@ package Mail::Qmail::Filter::SpamAssassin;
 
 our $VERSION = '2.0';
 
-use Mo qw(default);
+use Mo qw(coerce default);
 extends 'Mail::Qmail::Filter';
 
 has 'dump_spam_to';
