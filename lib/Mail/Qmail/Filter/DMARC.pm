@@ -24,10 +24,10 @@ sub spf_query {
 
 use namespace::clean;
 
-use Mo qw(coerce);
+use Mo qw(coerce default);
 extends 'Mail::Qmail::Filter';
 
-has 'reject';
+has 'dry_run';
 has 'reject_text' => 'Failed DMARC test.';
 
 sub filter {
@@ -88,7 +88,7 @@ sub filter {
             my $disposition = $dmarc_result->disposition;
             $self->debug( 'DMARC disposition' => $disposition );
             $self->reject( $self->reject_text )
-              if $disposition eq 'reject' && $self->reject;
+              if $disposition eq 'reject' && !$self->dry_run;
         }
     }
 }

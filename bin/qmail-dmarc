@@ -5,7 +5,14 @@ use warnings;
 
 our $VERSION = '1.1';
 
-use Mail::Qmail::Filter::DMARC qw(:skip_if_relayclient);
+use Mail::Qmail::Filter;
+
+Mail::Qmail::Filter->new->add_filter(
+    '::DMARC' => {
+        dry_run             => !$ENV{DMARC_REJECT},
+        skip_if_relayclient => 1,
+    },
+)->run;
 
 Mail::Qmail::Filter->run;
 
