@@ -3,49 +3,15 @@ use warnings;
 
 package Mail::Qmail::Filter;
 
-our $VERSION = '2.0';
+our $VERSION = '1.0';
 
 use Carp qw(confess);
 use FindBin    ();
 use IO::Handle ();
+use Mail::Qmail::Filter::Util qw(addresses2hash match_addr);
 use MailX::Qmail::Queue::Message;
 
-sub addresses2hash {
-    my $addrs = shift;
-    $addrs = [$addrs] unless ref $addrs;
-    my %struct;
-    for ( ref $addrs ? @$addrs : $addrs ) {
-        my ( $localpart, $domain ) = split_addr($_);
-        unless ( length $localpart ) {
-            $struct{$domain} = '';    # match for whole domain
-        }
-        else {
-            my $slot = $struct{$domain} //= {};
-            $slot->{$localpart} = '' if ref $slot;
-        }
-    }
-    \%struct;
-}
-
-sub match_addr {
-    my ( $struct,    $addr )   = @_;
-    my ( $localpart, $domain ) = split_addr($addr);
-    defined( my $slot = $struct->{$domain} ) or return;
-    !ref $slot || !length $localpart || defined $slot->{$localpart};
-}
-
-sub split_addr {
-    my $addr = shift;
-    if ( $addr =~ /\@/ ) {
-        my ( $localpart, $domain ) = split /\@/, $addr, 2;
-        $localpart, lc $domain;
-    }
-    else {
-        undef, lc $addr;
-    }
-}
-
-use namespace::clean;
+# use namespace::clean;
 
 # Must be under namespace::clean for coercion to work:
 use Mo qw(coerce default);
@@ -104,8 +70,11 @@ sub message {
 }
 
 sub reject {
-    my $self = shift;
-    $self->feedback_fh->print("D@_");
+    my $self        = shift;
+    my $reject_text = shift // 'Rejected';
+    $reject_text = $reject_text->(@_)
+      if ref $reject_text && 'CODE' eq ref $reject_text;
+    $self->feedback_fh->print("D$reject_text");
     $self->debug( action => 'reject' );
     exit 88;
 }
