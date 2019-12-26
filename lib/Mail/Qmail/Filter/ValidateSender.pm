@@ -1,44 +1,79 @@
-Mail-Qmail-Filter
+use 5.014;
+use warnings;
 
-This distribution provides filter modules for qmail for implementing
-filters between qmail-smtpd and qmail-queue.
+package Mail::Qmail::Filter::ValidateSender;
 
-INSTALLATION
+our $VERSION = '1.0';
 
-To install this module, run the following commands:
+use Mo qw(coerce default);
+extends 'Mail::Qmail::Filter';
 
-	perl Makefile.PL
-	make
-	make test
-	make install
+has 'params'      => {};
+has 'reject_text' => 'Invalid sender address.';
 
-SUPPORT AND DOCUMENTATION
+sub filter {
+    my $self = shift;
+    length( my $mail_from = $self->message->from ) or return;
 
-After installing, you can find documentation for this module with the
-perldoc command.
+    require Email::Valid;
+    $self->reject( $self->reject_text, $mail_from )
+      unless Email::Valid->new( %{ $self->params } )->address($mail_from);
+}
 
-    perldoc Mail::Qmail::Filter
+1;
 
-You can also look for information at:
+__END__
 
-    RT, CPAN's request tracker (report bugs here)
-        https://rt.cpan.org/NoAuth/Bugs.html?Dist=Mail-Qmail-Filter
+=head1 NAME
 
-    AnnoCPAN, Annotated CPAN documentation
-        https://annocpan.org/dist/Mail-Qmail-Filter
+Mail::Qmail::Filter::ValidateFrom -
+check syntax of RFC5321.MailFrom address
 
-    CPAN Ratings
-        https://cpanratings.perl.org/dist/Mail-Qmail-Filter
+=head1 SYNOPSIS
 
-    Search CPAN
-        https://metacpan.org/pod/Mail::Qmail::Filter
+    use Mail::Qmail::Filter;
 
+    Mail::Qmail::Filter->new->add_filters(
+        '::ValidateSender' => {
+            skip_for_rcpt => [ 'postmaster', 'postmaster@' . $mydomain ],
+            params        => { '-mxcheck' => 1 },
+        },
+        '::Queue',
+    )->run;
 
-LICENSE AND COPYRIGHT
+=head1 DESCRIPTION
 
-Copyright (C) 2019 Martin Sluka
+This L<Mail::Qmail::Filter> plugin checks if the RFC5321.MailFrom aka the
+envelope sender of the message contains a valid e-mail address (as far as
+L<Email::Valid> can tell).
 
-This program is free software; you can redistribute it and/or modify it
+Please note that empty sender addresses (as used for bounce messages)
+count as valid.
+
+=head1 OPTIONAL PARAMETERS
+
+=head2 params
+
+reference to a hash of parameters to pass to L<Email::Valid>
+
+=head2 reject_text
+
+Text to use when rejecting the message because it has an invalid sender address.
+
+May be a string or a subroutine which returns the text.
+The subroutine may access the problematic address as its first argument.
+
+Default: "Invalid sender address."
+  
+=head1 SEE ALSO
+
+L<Mail::Qmail::Filter/COMMON PARAMETERS FOR ALL FILTERS>, L<Email::Valid>
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright 2019 Martin Sluka.
+
+This module is free software; you can redistribute it and/or modify it
 under the terms of the the Artistic License (2.0). You may obtain a
 copy of the full license at:
 
@@ -74,3 +109,4 @@ CONTRIBUTOR WILL BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, OR
 CONSEQUENTIAL DAMAGES ARISING IN ANY WAY OUT OF THE USE OF THE PACKAGE,
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+=cut

@@ -3,7 +3,7 @@ use warnings;
 
 package MailX::Qmail::Queue::Message;
 
-our $VERSION = '0.11';
+our $VERSION = '1.0';
 
 use base 'Mail::Qmail::Queue::Message';
 
@@ -11,7 +11,7 @@ use Mail::Address;
 use Mail::Header;
 
 # Use inside-out attributes to avoid interference with base class:
-my(%header,%body);
+my ( %header, %body );
 
 sub header {
     my $self = shift;
@@ -41,7 +41,7 @@ sub helo {
 
 sub add_header {
     my $self = shift;
-    ${$self->body_ref} = join "\n", @_, $self->body;
+    ${ $self->body_ref } = join "\n", @_, $self->body;
     delete $header{$self};
     $self;
 }
@@ -71,9 +71,7 @@ MailX::Qmail::Queue::Message - extensions to Mail::Qmail::Queue::Message
 
 =head1 DESCRIPTION
 
-This class only contains some extensions to L<Mail::Qmail::Queue::Message>
-needed by C<qmail-dmarc>.
-You normally should not need to use it yourself.
+This class extends L<Mail::Qmail::Queue::Message>.
 
 =head1 METHODS
 
@@ -96,13 +94,20 @@ get the C<HELO>/C<EHLO> string used by the client
 Add header fields to the message.
 Expects C<Field: Value> as argument, without newlines at the end.
 
+=item ->replace_header($header)
+
+Replace the whole header of the message.
+C<$header> should either be a properly formatted e-mail header
+or an object with an C<as_string> method which produces such a string,
+e.g. a L<Mail::Header> object.
+
 =back
 
 =head1 BUGS
 
 Please report any bugs or feature requests to
-C<bug-app-qmail-dmarc at rt.cpan.org>, or through the web interface at
-L<https://rt.cpan.org/NoAuth/ReportBug.html?Queue=App-Qmail-DMARC>.
+C<bug-mail-qmail-filter at rt.cpan.org>, or through the web interface at
+L<https://rt.cpan.org/NoAuth/ReportBug.html?Queue=Mail-Qmail-Filter>.
 I will be notified, and then you'll automatically be notified of progress on
 your bug as I make changes.
 
@@ -110,7 +115,7 @@ your bug as I make changes.
 
 You can find documentation for this module with the perldoc command.
 
-    perldoc App::Qmail::DMARC
+    perldoc Mail::Qmail::Filter
 
 You can also look for information at:
 
@@ -118,27 +123,26 @@ You can also look for information at:
 
 =item * RT: CPAN's request tracker (report bugs here)
 
-L<https://rt.cpan.org/NoAuth/Bugs.html?Dist=App-Qmail-DMARC>
+L<https://rt.cpan.org/NoAuth/Bugs.html?Dist=Mail-Qmail-Filter>
 
 =item * AnnoCPAN: Annotated CPAN documentation
 
-L<http://annocpan.org/dist/App-Qmail-DMARC>
+L<https://annocpan.org/dist/Mail-Qmail-Filter>
 
 =item * CPAN Ratings
 
-L<https://cpanratings.perl.org/d/App-Qmail-DMARC>
+L<https://cpanratings.perl.org/dist/Mail-Qmail-Filter>
 
 =item * Search CPAN
 
-L<https://metacpan.org/release/App-Qmail-DMARC>
+L<https://metacpan.org/release/Mail-Qmail-Filter>
 
 =back
 
 =head1 ACKNOWLEDGEMENTS
-
 =head1 LICENSE AND COPYRIGHT
 
-Copyright 2019 Martin H. Sluka.
+Copyright 2019 Martin Sluka.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the the Artistic License (2.0). You may obtain a

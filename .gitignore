@@ -7,13 +7,14 @@ cover_db/
 inc/
 .last_cover_stats
 .lwpcookies
-App-Qmail-DMARC-*
-App-Qmail-DMARC-*.tar.gz
+Mail-Qmail-Filter-*
+Mail-Qmail-Filter-*.tar.gz
 Makefile
 Makefile.old
 MANIFEST.bak
 META.*
 MYMETA.*
 nytprof.out
+perltidy.LOG
 pm_to_blib
 pod2htm*.tmp

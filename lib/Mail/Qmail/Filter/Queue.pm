@@ -1,44 +1,55 @@
-Mail-Qmail-Filter
+use 5.014;
+use warnings;
 
-This distribution provides filter modules for qmail for implementing
-filters between qmail-smtpd and qmail-queue.
+package Mail::Qmail::Filter::Queue;
 
-INSTALLATION
+our $VERSION = '1.0';
 
-To install this module, run the following commands:
+use Mo qw(coerce);
+extends 'Mail::Qmail::Filter';
 
-	perl Makefile.PL
-	make
-	make test
-	make install
+sub filter {
+    my $self = shift;
+    local $ENV{QMAILQUEUE};    # use original qmail-queue
+    $self->message->send == 0 or die "Error sending message: exit status $?\n";
+    $self->debug( action => 'queue' );
+}
 
-SUPPORT AND DOCUMENTATION
+1;
 
-After installing, you can find documentation for this module with the
-perldoc command.
+__END__
 
-    perldoc Mail::Qmail::Filter
+=head1 NAME
 
-You can also look for information at:
+Mail::Qmail::Filter::Queue -
+queue message
 
-    RT, CPAN's request tracker (report bugs here)
-        https://rt.cpan.org/NoAuth/Bugs.html?Dist=Mail-Qmail-Filter
+=head1 SYNOPSIS
 
-    AnnoCPAN, Annotated CPAN documentation
-        https://annocpan.org/dist/Mail-Qmail-Filter
+    use Mail::Qmail::Filter;
+    
+    Mail::Qmail::Filter->new->add_filters(
+        # Usually you want to add additional filters here.
+        '::Queue',
+    )->run;
 
-    CPAN Ratings
-        https://cpanratings.perl.org/dist/Mail-Qmail-Filter
+=head1 DESCRIPTION
 
-    Search CPAN
-        https://metacpan.org/pod/Mail::Qmail::Filter
+This L<Mail::Qmail::Filter> plugin passes the message on to C<qmail-queue>.
+This is usually the last plugin you should use in your filter chain.
+If you do not use it, the message will be discarded.
+You can use it several times to copy the message.
+(I'm not saying you should, only that you can.)
 
+=head1 SEE ALSO
 
-LICENSE AND COPYRIGHT
+L<Mail::Qmail::Filter/COMMON PARAMETERS FOR ALL FILTERS>
 
-Copyright (C) 2019 Martin Sluka
+=head1 LICENSE AND COPYRIGHT
 
-This program is free software; you can redistribute it and/or modify it
+Copyright 2019 Martin Sluka.
+
+This module is free software; you can redistribute it and/or modify it
 under the terms of the the Artistic License (2.0). You may obtain a
 copy of the full license at:
 
@@ -74,3 +85,4 @@ CONTRIBUTOR WILL BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, OR
 CONSEQUENTIAL DAMAGES ARISING IN ANY WAY OUT OF THE USE OF THE PACKAGE,
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+=cut

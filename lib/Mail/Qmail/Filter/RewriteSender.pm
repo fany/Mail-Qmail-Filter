@@ -1,44 +1,66 @@
-Mail-Qmail-Filter
+use 5.014;
+use warnings;
 
-This distribution provides filter modules for qmail for implementing
-filters between qmail-smtpd and qmail-queue.
+package Mail::Qmail::Filter::RewriteSender;
 
-INSTALLATION
+our $VERSION = '1.0';
 
-To install this module, run the following commands:
+use Mo qw(coerce required);
+extends 'Mail::Qmail::Filter';
 
-	perl Makefile.PL
-	make
-	make test
-	make install
+has mail_from => required => 1;
 
-SUPPORT AND DOCUMENTATION
+sub filter {
+    my $self    = shift;
+    my $message = $self->message;
 
-After installing, you can find documentation for this module with the
-perldoc command.
+    $self->debug( 'new RFC5321.MailFrom' => ${ $message->from_ref } =
+          $self->mail_from );
+}
 
-    perldoc Mail::Qmail::Filter
+1;
 
-You can also look for information at:
+__END__
 
-    RT, CPAN's request tracker (report bugs here)
-        https://rt.cpan.org/NoAuth/Bugs.html?Dist=Mail-Qmail-Filter
+=head1 NAME
 
-    AnnoCPAN, Annotated CPAN documentation
-        https://annocpan.org/dist/Mail-Qmail-Filter
+Mail::Qmail::Filter::RewriteSender -
+exchange RFC5321.MailFrom address
 
-    CPAN Ratings
-        https://cpanratings.perl.org/dist/Mail-Qmail-Filter
+=head1 SYNOPSIS
 
-    Search CPAN
-        https://metacpan.org/pod/Mail::Qmail::Filter
+    use Mail::Qmail::Filter;
 
+    Mail::Qmail::Filter->new->add_filters(
+        '::RewriteSender' => {
+            skip_for_from => [$mydomain],
+            mail_from     => 'postmaster@' . $mydomain,
+        },
+        '::Queue',
+    )->run;
 
-LICENSE AND COPYRIGHT
+=head1 DESCRIPTION
 
-Copyright (C) 2019 Martin Sluka
+This L<Mail::Qmail::Filter> plugin exchanges the RFC5321.MailFrom aka the
+envelope sender.
 
-This program is free software; you can redistribute it and/or modify it
+=head1 REQUIRED PARAMETERS
+
+=head2 mail_from
+
+What should be used as the new RFC5321.MailFrom.
+You should only provide an e-mail address here,
+which must be already puny-encoded for IDNs.
+
+=head1 SEE ALSO
+
+L<Mail::Qmail::Filter/COMMON PARAMETERS FOR ALL FILTERS>
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright 2019 Martin Sluka.
+
+This module is free software; you can redistribute it and/or modify it
 under the terms of the the Artistic License (2.0). You may obtain a
 copy of the full license at:
 
@@ -74,3 +96,4 @@ CONTRIBUTOR WILL BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, OR
 CONSEQUENTIAL DAMAGES ARISING IN ANY WAY OUT OF THE USE OF THE PACKAGE,
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+=cut

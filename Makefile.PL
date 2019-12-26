@@ -3,11 +3,10 @@ use warnings;
 use ExtUtils::MakeMaker;
 
 WriteMakefile(
-    NAME               => 'App::Qmail::DMARC',
-    AUTHOR             => q{Martin H. Sluka <fany@cpan.org>},
-    VERSION_FROM       => 'lib/App/Qmail/DMARC.pm',
+    NAME               => 'Mail::Qmail::Filter',
+    AUTHOR             => q{Martin Sluka <fany@cpan.org>},
+    VERSION_FROM       => 'lib/Mail/Qmail/Filter.pm',
     LICENSE            => 'artistic_2',
-    EXE_FILES          => ['bin/qmail-dmarc'],
     PL_FILES           => {},
     MIN_PERL_VERSION   => '5.014',
     CONFIGURE_REQUIRES => {
@@ -32,14 +31,14 @@ WriteMakefile(
         'Qmail::Deliverable'          => 0,
     },
     dist  => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
-    clean => { FILES    => 'App-Qmail-DMARC-*' },
+    clean => { FILES    => 'Mail-Qmail-Filter-*' },
 
     PERM_DIR => '755',
 
     META_MERGE => {
         resources => {
-            homepage   => 'https://github.com/fany/App-Qmail-DMARC',
-            repository => 'https://github.com/fany/App-Qmail-DMARC.git',
+            homepage   => 'https://github.com/fany/Mail-Qmail-Filter',
+            repository => 'https://github.com/fany/Mail-Qmail-Filter.git',
         },
     },
 );
