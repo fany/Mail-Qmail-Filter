@@ -3,7 +3,7 @@ use warnings;
 
 package Mail::Qmail::Filter::Util;
 
-our $VERSION = '1.0';
+our $VERSION = '1.1';
 
 use base 'Exporter';
 
@@ -34,13 +34,12 @@ sub match_address {
 }
 
 sub split_address {
-    my $addr = shift;
-    if ( $addr =~ /\@/ ) {
-        my ( $localpart, $domain ) = split /\@/, $addr, 2;
-        $localpart, lc $domain;
+    my $lc_addr = lc shift;
+    if ( $lc_addr =~ /\@/ ) {
+        split /\@/, $lc_addr, 2;
     }
     else {
-        undef, lc $addr;
+        undef, $lc_addr;
     }
 }
 
@@ -100,12 +99,9 @@ Will return a true value if the e-mail address given is one of the
 addresses you had given to L</addresses_to_hash> or if its domain name
 is one of the domain names you had given to L</addresses_to_hash>.
 
-Domain names will be compared case-insensitively, while the local-parts
-will be compared case-sensitively, because according to
-L<RFC 5321|https://tools.ietf.org/html/rfc5321#section-2.4>, they might be.
-If you want everything to be handled case-insensitively, it is recommended
-to convert any strings you provide to lowercase before passing them to
-L</addresses_to_hash> or to L</match_address>.
+Everything will be compared case-insensitively, because domain names are
+not case-sensitive anyway, and presumably no-one uses case-sensitive
+localparts.
 
 =head2 split_address
 

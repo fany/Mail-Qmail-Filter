@@ -3,7 +3,7 @@ use warnings;
 
 package Mail::Qmail::Filter::RequireFrom;
 
-our $VERSION = '1.0';
+our $VERSION = '1.1';
 
 use Mail::Qmail::Filter::Util qw(addresses_to_hash match_address);
 
@@ -13,7 +13,7 @@ use Mo qw(coerce default required);
 extends 'Mail::Qmail::Filter';
 
 has 'allowed_addresses' => coerce => \&addresses_to_hash, required => 1;
-has 'lowercase_from';
+has 'lowercase_from';    # ignored; only for backwards compatibility
 has 'reject_text' => sub { "<$_[0]> not allowed as RFC5322.From" };
 
 sub filter {
@@ -22,10 +22,7 @@ sub filter {
     if ( my $header_from = $self->message->header_from ) {
         $header_from_address = $header_from->address;
         return
-          if match_address( $self->allowed_addresses,
-            $self->lowercase_from
-            ? lc $header_from_address
-            : $header_from_address );
+          if match_address( $self->allowed_addresses, $header_from_address );
     }
     $self->reject( $self->reject_text, $header_from_address );
 }
@@ -66,13 +63,6 @@ If given a domain name instead of a complete address, any localpart @
 this domain will be allowed.
 
 =head1 OPTIONAL PARAMETERS
-
-=head2 lowercase_from
-
-When set to a true value, will convert the RFC5322.From address to
-lowercase before comparing it with the list of L</allowed_addresses>.
-If you want localparts to be compared case-insensitively, please use
-this and provide all localparts to L</allowed_addresses> in lowercase.
 
 =head2 reject_text
 
