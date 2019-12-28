@@ -3,7 +3,7 @@ use warnings;
 
 package Mail::Qmail::Filter::CheckDeliverability;
 
-our $VERSION = '1.0';
+our $VERSION = '1.01';
 
 use Mo qw(coerce default);
 extends 'Mail::Qmail::Filter';
@@ -24,7 +24,7 @@ sub filter {
         my $dot_qmail = dot_qmail($_);
         unless ( defined $dot_qmail ) {
             $self->debug( 'No .qmail file found for rcpt' => $_ );
-            $reject_text = $self->rejext_text;
+            $reject_text = $self->reject_text;
             next;
         }
         next if $done{$dot_qmail}++;
