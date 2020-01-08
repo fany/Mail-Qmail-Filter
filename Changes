@@ -1,5 +1,8 @@
 Revision history for Mail-Qmail-Filter
 
+1.21    2020-01-08 08:45
+        bugfix for default reject text in Mail::Qmail::Filter::ValidateFrom
+
 1.2     2020-01-08 08:30
         do not pass invalid domains to Mail::DMARC, because it would croak
 
