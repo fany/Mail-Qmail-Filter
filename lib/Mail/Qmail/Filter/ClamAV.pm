@@ -1,41 +1,44 @@
 use 5.014;
 use warnings;
 
-package Mail::Qmail::Filter::SpamAssassin;
+package Mail::Qmail::Filter::ClamAV;
 
-our $VERSION = '1.01';
+our $VERSION = '1.0';
 
 use Mo qw(coerce default);
 extends 'Mail::Qmail::Filter';
 
-has 'dump_spam_to';
-has 'mark';
-has 'reject_score';
-has 'reject_text' => 'I think this message is spam.';
+has 'clamav_options' => sub { [] };
+has 'dump_malware_to';
+has 'error_text'  => 'An error occured when scanning the message for viruses.';
+has 'reject_text' => sub {
+    sub { "Virus found: $_[0]" }
+};
 
 sub filter {
     my $self     = shift;
     my $message  = $self->message;
     my $body_ref = $message->body_ref;
 
-    require Mail::SpamAssassin;    # lazy load because filter might be skipped
-    my $sa     = Mail::SpamAssassin->new;
-    my $mail   = $sa->parse($body_ref);
-    my $status = $sa->check($mail);
-    $self->debug( 'spam score' => my $score = $status->get_score );
-
-    if ( $status->is_spam ) {
-        if ( defined( my $dir = $self->dump_spam_to ) ) {
-            require Path::Tiny and Path::Tiny->import('path')
-              unless defined &path;
-            path( $dir, my $file = join '_', $^T, $$, $score )
-              ->spew($$body_ref);
-            $self->debug( 'dumped message to' => $file );
-            path( $dir, $file . '_report' )->spew( $status->get_report );
+    require File::Scan::ClamAV;    # lazy load because filter might be skipped
+    my $av = File::Scan::ClamAV->new( @{ $self->clamav_options } );
+    my ( $response, $virus ) = $av->streamscan($$body_ref);
+    if ( my $errstr = $av->errstr ) {
+        $self->defer( $self->error_text, $errstr );
+    }
+    else {
+        $self->debug( result => $response );
+        if ($virus) {
+            $self->debug( virus => $virus );
+            if ( defined( my $dir = $self->dump_malware_to ) ) {
+                require Path::Tiny and Path::Tiny->import('path')
+                  unless defined &path;
+                path( $dir, my $file = join '_', $^T, $$, $virus =~ y!/\n!_!r )
+                  ->spew($$body_ref);
+                $self->debug( 'dumped message to' => $file );
+            }
+            $self->reject( $self->reject_text, $virus );
         }
-        $self->reject( $self->reject_text )
-          if $self->reject_score && $score >= $self->reject_score;
-        $$body_ref = $status->rewrite_mail if $self->mark;
     }
 }
 
@@ -45,19 +48,18 @@ __END__
 
 =head1 NAME
 
-Mail::Qmail::Filter::SpamAssassin -
-check if message is spam
+Mail::Qmail::Filter::ClamAV -
+check if message contains mailware
 
 =head1 SYNOPSIS
 
     use Mail::Qmail::Filter;
     
     Mail::Qmail::Filter->new->add_filter(
-        '::SpamAssassin' => {
-            skip_if_relayclient => 1,
-            skip_for_rcpt       => [ 'postmaster', 'postmaster@' . $mydomain ],
-            dump_spam_to        => '/var/tmp/spam',
-            reject_score        => 5.2,
+        '::ClamAV' => {
+            clamav_options  => [ port => '/run/clamav/clamd-socket' ],
+            skip_for_rcpt   => [ 'postmaster', 'postmaster@' . $mydomain ],
+            dump_malware_to => '/var/tmp/malware',
         },
         '::Queue',
     )->run;
@@ -65,40 +67,44 @@ check if message is spam
 =head1 DESCRIPTION
 
 This L<Mail::Qmail::Filter> plugin checks if the incoming e-mail message
-is probably spam.
+contains a virus.
 
 =head1 OPTIONAL PARAMETERS
 
-=head2 dump_spam_to
+=head2 clamav_options
 
-If the message is spam, copy it into a file in the given directory.
+Options which are passed to C<L<File::Scan::ClamAV>-E<gt>new()>.
+
+=head2 dump_malware_to
+
+If a virus is found in the message, copy it into a file in the given directory.
 The file will be named 
-C<E<lt>epoch_time_when_script_startedE<gt>_E<lt>pidE<gt>_E<lt>spam_scoreE<gt>>
+C<E<lt>epoch_time_when_script_startedE<gt>_E<lt>pidE<gt>_E<lt>virus_nameE<gt>>
 
-A spam report will be written to another file named
-C<E<lt>epoch_time_when_script_startedE<gt>_E<lt>pidE<gt>_E<lt>spam_scoreE<gt>_report>
+=head2 error_text
 
-=head2 mark
+Reply text in case an error occurs during the scan.
 
-Mark the message if it is spam and is not rejected.
+Default: C<An error occured when scanning the message for viruses.>
 
-=head2 reject_score
-
-To reject the message if it has at least the spam score given.
+An error message is passed to this method, so you may include it via C<$_[0]>
+if you want.
 
 =head2 reject_text
 
 Reply text to send to the client when the message is rejected.
 
-Default: C<I think this message is spam.>
+Default:
+
+    sub { "Virus found: $_[0]" }
 
 =head1 SEE ALSO
 
-L<Mail::Qmail::Filter/COMMON OPTIONS FOR ALL FILTERS>, L<Mail::SpamAssassin>
+L<Mail::Qmail::Filter/COMMON OPTIONS FOR ALL FILTERS>, L<File::Scan::ClamAV>
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright 2019 Martin Sluka.
+Copyright 2022 Martin Sluka.
 
 This module is free software; you can redistribute it and/or modify it
 under the terms of the the Artistic License (2.0). You may obtain a
