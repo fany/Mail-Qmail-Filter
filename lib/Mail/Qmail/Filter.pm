@@ -3,7 +3,7 @@ use warnings;
 
 package Mail::Qmail::Filter;
 
-our $VERSION = '1.3';
+our $VERSION = '1.31';
 
 use Carp qw(confess);
 use FindBin    ();
@@ -292,7 +292,7 @@ validate RFC5321.MailFrom
 
 =head2 skip_if_relayclient
 
-When set to a true calue, the L</run> method will skip the filter when
+When set to a true value, the L</run> method will skip the filter when
 the environment variable C<RELAYCLIENT> exists.
 
 =head2 skip_for_sender
