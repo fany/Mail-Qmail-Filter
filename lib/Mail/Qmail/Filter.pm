@@ -28,6 +28,7 @@ has 'defer_only';
 has 'feedback_fh'     => $feedback_fh;
 has 'filters'         => [];
 has 'reject_text'     => 'Rejected.';
+has 'skip_if';
 has 'skip_for_from'   => coerce => \&addresses_to_hash;
 has 'skip_for_rcpt'   => coerce => \&addresses_to_hash;
 has 'skip_for_sender' => coerce => \&addresses_to_hash;
@@ -88,6 +89,8 @@ sub run {
     my $self = shift;
 
     my $package = ref $self;
+
+    return if $self->skip_if && $self->skip_if->($self);
 
     if ( exists $ENV{RELAYCLIENT} && $self->skip_if_relayclient ) {
         $self->debug("$package skipped");
@@ -289,6 +292,12 @@ validate RFC5321.MailFrom
 =back
 
 =head1 COMMON PARAMETERS FOR ALL FILTERS
+
+=head2 skip_if
+
+When given a sub routine as an argument, executes this sub routine,
+passing the filter as only parameter.
+If the sub routine returns a true value, the rest of the filter is skipped.
 
 =head2 skip_if_relayclient
 
