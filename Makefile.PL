@@ -17,6 +17,7 @@ WriteMakefile(
     },
     PREREQ_PM => {
         'Capture::Tiny'               => 0,
+	'Net::DNS::Resolver'          => 0,
         'Email::Valid'                => 0,
         'File::Scan::ClamAV'          => 0,
         'Mail::Address'               => 0,
@@ -28,6 +29,7 @@ WriteMakefile(
         'Mail::SPF'                   => 0,
         'Mo'                          => 0,
         'namespace::clean'            => 0,
+	'Net::SMTP'                   => 0,
         'Path::Tiny'                  => 0,
         'Qmail::Deliverable'          => 0,
     },

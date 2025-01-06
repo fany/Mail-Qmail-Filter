@@ -1,0 +1,169 @@
+use 5.014;
+use warnings;
+
+package Mail::Qmail::Filter::VerifySender;
+
+our $VERSION = '0.01';
+
+use Mo qw(coerce default);
+extends 'Mail::Qmail::Filter';
+
+has 'params' => {};
+
+sub filter {
+    my $self = shift;
+    length( my $mail_from = $self->message->from ) or return;
+    $self->debug("Verifying sender address <$mail_from>");
+
+    my ($domain) = $mail_from =~ /\@(.*)/;
+
+    require Net::DNS::Resolver;
+    state $resolver = Net::DNS::Resolver->new;
+    my @mx = map $_->exchange,
+      sort { $a->preference <=> $b->preference } grep $_->type eq 'MX',
+      $self->resolve( MX => $domain );
+    if (@mx) {
+        $self->debug("MXes for sender domain $domain: @mx");
+    }
+    else {
+        @mx = map [ $domain, $_->address ], $self->resolve( A => $domain );
+        $self->debug(
+            "Sender domain $domain has no MX; fallback to A RRs: " . join ' ',
+            map $_->[1], @mx );
+    }
+    $self->reject("Domain $domain of sender has no valid MX.") unless @mx;
+
+    while (@mx) {
+        if ( ref( my $mx = shift @mx ) ) {
+            ( $mx, my $address ) = @$mx;
+	    require Net::SMTP;
+            if ( my $smtp = Net::SMTP->new( $address, Timeout => 5 ) ) {
+                $smtp->mail('<>');
+                $smtp->recipient($mail_from);
+                my $code    = $smtp->code;
+                my $message = $smtp->message;
+                $smtp->quit;
+                $self->debug("$mx [$address] returned $code $message");
+                $self->reject( "According to $mx [$address],"
+                      . " <$mail_from> isn't a valid e-mail address: $code $message"
+                ) if $code == 550;
+                return;
+            }
+            else {
+                $self->debug("Could not connect to $mx [$address]: $!");
+            }
+        }
+        else {    # resolve MX RRs to addresses on demand
+            unshift @mx, my @addresses = map [ $mx, $_->address ],
+              $self->resolve( AAAA => $mx ), $self->resolve( A => $mx );
+            $self->debug( "$mx resolved to " . join ' ',
+                map $_->[1], @addresses );
+        }
+    }
+    $self->defer('Could not verify sender address.');
+}
+
+sub resolve {
+    my ( $self, $type, $name ) = @_;
+    state $resolver = Net::DNS::Resolver->new;
+    my $packet = $resolver->send( $name, $type );
+    $self->defer( "Error resolving $type for $name: " . $packet->header->rcode )
+      if $packet->header->rcode ne 'NOERROR';
+    $packet->answer;
+}
+
+1;
+
+__END__
+
+=head1 NAME
+
+Mail::Qmail::Filter::VerifySender -
+check syntax of RFC5321.MailFrom address
+
+=head1 SYNOPSIS
+
+    use Mail::Qmail::Filter;
+
+    Mail::Qmail::Filter->new->add_filters(
+        '::VerifySender' => {
+            skip_for_rcpt => [ 'postmaster', 'postmaster@' . $mydomain ],
+        },
+        '::Queue',
+    )->run;
+
+=head1 DESCRIPTION
+
+This L<Mail::Qmail::Filter> plugin checks if the RFC5321.MailFrom aka the
+envelope sender of the message is an existing e-mail address via doing
+SMTP callouts.
+
+The sender is rejected in any of the following constellations:
+
+=over 4
+
+=item *
+
+There is no valid MX or A RR for the sender domain.
+
+=item *
+
+An authorititative MX can be reached and returns error code 550 when
+trying to send an e-mail to the sender address.
+
+=back
+
+In any other cases (such as timeouts or other errors), we do not reject
+the e-mail.
+
+=head1 OPTIONAL PARAMETERS
+
+=head2 params
+
+reference to a hash of parameters to pass to L<Email::Valid>
+
+=head1 SEE ALSO
+
+L<Mail::Qmail::Filter/COMMON PARAMETERS FOR ALL FILTERS>
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright 2025 Martin Sluka.
+
+This module is free software; you can redistribute it and/or modify it
+under the terms of the the Artistic License (2.0). You may obtain a
+copy of the full license at:
+
+L<http://www.perlfoundation.org/artistic_license_2_0>
+
+Any use, modification, and distribution of the Standard or Modified
+Versions is governed by this Artistic License. By using, modifying or
+distributing the Package, you accept this license. Do not use, modify,
+or distribute the Package, if you do not accept this license.
+
+If your Modified Version has been derived from a Modified Version made
+by someone other than you, you are nevertheless required to ensure that
+your Modified Version complies with the requirements of this license.
+
+This license does not grant you the right to use any trademark, service
+mark, tradename, or logo of the Copyright Holder.
+
+This license includes the non-exclusive, worldwide, free-of-charge
+patent license to make, have made, use, offer to sell, sell, import and
+otherwise transfer the Package with respect to any patent claims
+licensable by the Copyright Holder that are necessarily infringed by the
+Package. If you institute patent litigation (including a cross-claim or
+counterclaim) against any party alleging that the Package constitutes
+direct or contributory patent infringement, then this Artistic License
+to you shall terminate on the date that such litigation is filed.
+
+Disclaimer of Warranty: THE PACKAGE IS PROVIDED BY THE COPYRIGHT HOLDER
+AND CONTRIBUTORS "AS IS' AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES.
+THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+PURPOSE, OR NON-INFRINGEMENT ARE DISCLAIMED TO THE EXTENT PERMITTED BY
+YOUR LOCAL LAW. UNLESS REQUIRED BY LAW, NO COPYRIGHT HOLDER OR
+CONTRIBUTOR WILL BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, OR
+CONSEQUENTIAL DAMAGES ARISING IN ANY WAY OUT OF THE USE OF THE PACKAGE,
+EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+=cut

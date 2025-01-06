@@ -3,7 +3,7 @@ use warnings;
 
 package Mail::Qmail::Filter;
 
-our $VERSION = '1.32';
+our $VERSION = '1.33';
 
 use Carp qw(confess);
 use FindBin    ();
@@ -253,7 +253,11 @@ validate RFC5322.From
 
 =item L<Mail::Qmail::Filter::ValidateSender>
 
-validate RFC5321.MailFrom
+validate RFC5321.MailFrom syntactically
+
+=item L<Mail::QMail::Filter::VerifySender>
+
+verify RFC5321.MailFrom via SMTP callout
 
 =back
 
