@@ -1,14 +1,15 @@
-use 5.014;
-use warnings;
+use 5.02;        # because we use ->%*
+use warnings;    # no default before Perl 5.35
 
 package Mail::Qmail::Filter::VerifySender;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 use Mo qw(coerce default);
 extends 'Mail::Qmail::Filter';
 
-has 'params' => {};
+has net_dns_resolver_params => {};
+has net_smtp_params         => { Timeout => 5 };
 
 sub filter {
     my $self = shift;
@@ -18,7 +19,8 @@ sub filter {
     my ($domain) = $mail_from =~ /\@(.*)/;
 
     require Net::DNS::Resolver;
-    state $resolver = Net::DNS::Resolver->new;
+    state $resolver =
+      Net::DNS::Resolver->new( $self->net_dns_resolver_params->%* );
     my @mx = map $_->exchange,
       sort { $a->preference <=> $b->preference } grep $_->type eq 'MX',
       $self->resolve( MX => $domain );
@@ -36,8 +38,10 @@ sub filter {
     while (@mx) {
         if ( ref( my $mx = shift @mx ) ) {
             ( $mx, my $address ) = @$mx;
-	    require Net::SMTP;
-            if ( my $smtp = Net::SMTP->new( $address, Timeout => 5 ) ) {
+            require Net::SMTP;
+            if ( my $smtp =
+                Net::SMTP->new( $address, $self->net_smtp_params->%* ) )
+            {
                 $smtp->mail('<>');
                 $smtp->recipient($mail_from);
                 my $code    = $smtp->code;
@@ -118,9 +122,19 @@ the e-mail.
 
 =head1 OPTIONAL PARAMETERS
 
-=head2 params
+=head2 net_dns_resolver_params
 
-reference to a hash of parameters to pass to L<Email::Valid>
+reference to a hash of parameters to pass when creating the
+L<Net::DNS::Resolver> object to resolve sender domains
+
+Default: C<{}>
+
+=head2 net_smtp_params
+
+reference to a hash of parameters to pass to L<Net::SMTP>->new
+when creating SMTP connections
+
+Default: C<{ Timeout =E<gt> 5 }>
 
 =head1 SEE ALSO
 
