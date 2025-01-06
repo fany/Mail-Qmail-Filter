@@ -30,6 +30,7 @@ WriteMakefile(
         'Mo'                          => 0,
         'namespace::clean'            => 0,
 	'Net::SMTP'                   => 0,
+	'Net::Domain'                 => 0,
         'Path::Tiny'                  => 0,
         'Qmail::Deliverable'          => 0,
     },

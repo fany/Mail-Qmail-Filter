@@ -3,13 +3,13 @@ use warnings;    # no default before Perl 5.35
 
 package Mail::Qmail::Filter::VerifySender;
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 use Mo qw(coerce default);
 extends 'Mail::Qmail::Filter';
 
 has net_dns_resolver_params => {};
-has net_smtp_params         => { Timeout => 5 };
+has net_smtp_params         => { Hello => undef, Timeout => 5 };
 
 sub filter {
     my $self = shift;
@@ -19,7 +19,7 @@ sub filter {
     my ($domain) = $mail_from =~ /\@(.*)/;
 
     require Net::DNS::Resolver;
-    state $resolver =
+    my $resolver =
       Net::DNS::Resolver->new( $self->net_dns_resolver_params->%* );
     my @mx = map $_->exchange,
       sort { $a->preference <=> $b->preference } grep $_->type eq 'MX',
@@ -39,9 +39,15 @@ sub filter {
         if ( ref( my $mx = shift @mx ) ) {
             ( $mx, my $address ) = @$mx;
             require Net::SMTP;
-            if ( my $smtp =
-                Net::SMTP->new( $address, $self->net_smtp_params->%* ) )
+            my %net_smtp_params = $self->net_smtp_params->%*;
+            if ( exists $net_smtp_params{Hello}
+                && !defined $net_smtp_params{Hello} )
             {
+                require Net::Domain and Net::Domain->import('hostfqdn')
+                  unless defined &hostfqdn;
+                $net_smtp_params{Hello} = hostfqdn();
+            }
+            if ( my $smtp = Net::SMTP->new( $address, %net_smtp_params ) ) {
                 $smtp->mail('<>');
                 $smtp->recipient($mail_from);
                 my $code    = $smtp->code;
@@ -134,7 +140,10 @@ Default: C<{}>
 reference to a hash of parameters to pass to L<Net::SMTP>->new
 when creating SMTP connections
 
-Default: C<{ Timeout =E<gt> 5 }>
+Default: C<{ Hello =E<gt> undef, Timeout =E<gt> 5 }>
+
+Special case: An L<undef|perlfunc/undef>ined value for C<Hello> causes
+this module to set that parameter by calling L<Net::Domain/hostfqdn()>.
 
 =head1 SEE ALSO
 
