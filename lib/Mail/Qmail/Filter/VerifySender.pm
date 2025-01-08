@@ -3,11 +3,12 @@ use warnings;    # no default before Perl 5.35
 
 package Mail::Qmail::Filter::VerifySender;
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 use Mo qw(coerce default);
 extends 'Mail::Qmail::Filter';
 
+has 'dump_rejected_to';
 has net_dns_resolver_params => {};
 has net_smtp_params         => { Hello => undef, Timeout => 5 };
 
@@ -54,10 +55,17 @@ sub filter {
                 my $message = $smtp->message;
                 $smtp->quit;
                 $self->debug("$mx [$address] returned $code $message");
+                return if $code != 550;
+                if ( defined( my $dir = $self->dump_rejected_to ) ) {
+                    require Path::Tiny and Path::Tiny->import('path')
+                      unless defined &path;
+                    path( $dir, my $file = join '_', $^T, $$ )
+                      ->spew($$body_ref);
+                    $self->debug( 'dumped message to' => $file );
+                }
                 $self->reject( "According to $mx [$address],"
                       . " <$mail_from> isn't a valid e-mail address: $code $message"
-                ) if $code == 550;
-                return;
+                );
             }
             else {
                 $self->debug("Could not connect to $mx [$address]: $!");
@@ -144,6 +152,12 @@ Default: C<{ Hello =E<gt> undef, Timeout =E<gt> 5 }>
 
 Special case: An L<undef|perlfunc/undef>ined value for C<Hello> causes
 this module to set that parameter by calling L<Net::Domain/hostfqdn()>.
+
+=head2 dump_spam_to
+
+If the message is rejected, copy it into a file in the given directory.
+The file will be named 
+C<E<lt>epoch_time_when_script_startedE<gt>_E<lt>pidE<gt>
 
 =head1 SEE ALSO
 
