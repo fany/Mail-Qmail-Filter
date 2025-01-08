@@ -60,7 +60,7 @@ sub filter {
                     require Path::Tiny and Path::Tiny->import('path')
                       unless defined &path;
                     path( $dir, my $file = join '_', $^T, $$ )
-                      ->spew($$body_ref);
+                      ->spew( $self->message->body );
                     $self->debug( 'dumped message to' => $file );
                 }
                 $self->reject( "According to $mx [$address],"
