@@ -314,17 +314,23 @@ Takes an e-mail address or a reference to a list of such.
 The L</run> method will then skip the filter if the RFC5321.MailFrom address
 of the L</message> is one of these.
 
+You can use domain names without a localpart to skip any address @ that domain.
+
 =head2 skip_for_from
 
 Takes an e-mail address or a reference to a list of such.
 The L</run> method will then skip the filter if the RFC5322.From address
 of the L</message> is one of these.
 
+You can use domain names without a localpart to skip any address @ that domain.
+
 =head2 skip_for_rcpt
 
 Takes an e-mail address or a reference to a list of such.
 The L</run> method will then skip the filter if at least one of the recipients
 in the envelope of the L</message> is one of these.
+
+You can use domain names without a localpart to skip any address @ that domain.
 
 =head2 defer_only
 
