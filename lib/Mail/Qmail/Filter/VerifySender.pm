@@ -3,14 +3,14 @@ use warnings;    # no default before Perl 5.35
 
 package Mail::Qmail::Filter::VerifySender;
 
-our $VERSION = '0.04';
+our $VERSION = '0.1';
 
 use Mo qw(coerce default);
 extends 'Mail::Qmail::Filter';
 
 has 'dump_rejected_to';
 has net_dns_resolver_params => {};
-has net_smtp_params         => { Hello => undef, Timeout => 5 };
+has net_smtp_params         => { Hello => undef, Timeout => 10 };
 
 sub filter {
     my $self = shift;
@@ -24,12 +24,12 @@ sub filter {
       Net::DNS::Resolver->new( $self->net_dns_resolver_params->%* );
     my @mx = map $_->exchange,
       sort { $a->preference <=> $b->preference } grep $_->type eq 'MX',
-      $self->resolve( MX => $domain );
+      $self->resolve( MX => $domain, 1 );
     if (@mx) {
         $self->debug("MXes for sender domain $domain: @mx");
     }
     else {
-        @mx = map [ $domain, $_->address ], $self->resolve( A => $domain );
+        @mx = map [ $domain, $_->address ], $self->resolve( A => $domain, 1 );
         $self->debug(
             "Sender domain $domain has no MX; fallback to A RRs: " . join ' ',
             map $_->[1], @mx );
@@ -78,15 +78,20 @@ sub filter {
                 map $_->[1], @addresses );
         }
     }
-    $self->defer('Could not verify sender address.');
+    $self->debug('Could not verify sender address.');
+    return;
 }
 
 sub resolve {
-    my ( $self, $type, $name ) = @_;
+    my ( $self, $type, $name, $defer ) = @_;
     state $resolver = Net::DNS::Resolver->new;
     my $packet = $resolver->send( $name, $type );
-    $self->defer( "Error resolving $type for $name: " . $packet->header->rcode )
-      if $packet->header->rcode ne 'NOERROR';
+    if ( $packet->header->rcode ne 'NOERROR' ) {
+        my $method = $defer ? 'defer' : 'debug';
+        $self->$method(
+            "Error resolving $type for $name: " . $packet->header->rcode );
+        return;
+    }
     $packet->answer;
 }
 
