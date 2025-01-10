@@ -3,7 +3,7 @@ use warnings;    # no default before Perl 5.35
 
 package Mail::Qmail::Filter::VerifySender;
 
-our $VERSION = '0.1';
+our $VERSION = '0.3';
 
 use Mo qw(coerce default);
 extends 'Mail::Qmail::Filter';
@@ -20,79 +20,59 @@ sub filter {
     my ($domain) = $mail_from =~ /\@(.*)/;
 
     require Net::DNS::Resolver;
-    my $resolver =
+    state $resolver =
       Net::DNS::Resolver->new( $self->net_dns_resolver_params->%* );
+    my $packet = $resolver->send( $domain, 'MX' );
+    $self->defer( "Error resolving MX for $domain " . $packet->header->rcode )
+      if $packet->header->rcode ne 'NOERROR';
     my @mx = map $_->exchange,
       sort { $a->preference <=> $b->preference } grep $_->type eq 'MX',
-      $self->resolve( MX => $domain, 1 );
+      $packet->answer;
+
     if (@mx) {
         $self->debug("MXes for sender domain $domain: @mx");
     }
     else {
-        @mx = map [ $domain, $_->address ], $self->resolve( A => $domain, 1 );
-        $self->debug(
-            "Sender domain $domain has no MX; fallback to A RRs: " . join ' ',
-            map $_->[1], @mx );
+        @mx = $domain;
+        $self->debug("Sender domain $domain has no MX; fallback to A RR.");
     }
     $self->reject("Domain $domain of sender has no valid MX.") unless @mx;
 
-    while (@mx) {
-        if ( ref( my $mx = shift @mx ) ) {
-            ( $mx, my $address ) = @$mx;
-            require Net::SMTP;
-            my %net_smtp_params = $self->net_smtp_params->%*;
-            if ( exists $net_smtp_params{Hello}
-                && !defined $net_smtp_params{Hello} )
-            {
-                require Net::Domain and Net::Domain->import('hostfqdn')
-                  unless defined &hostfqdn;
-                $net_smtp_params{Hello} = hostfqdn();
-            }
-            if ( my $smtp = Net::SMTP->new( $address, %net_smtp_params ) ) {
-                $smtp->mail('<>');
-                $smtp->recipient($mail_from);
-                my $code    = $smtp->code;
-                my $message = $smtp->message;
-                $smtp->quit;
-                $self->debug("$mx [$address] returned $code $message");
-                return if $code != 550;
-                if ( defined( my $dir = $self->dump_rejected_to ) ) {
-                    require Path::Tiny and Path::Tiny->import('path')
-                      unless defined &path;
-                    path( $dir, my $file = join '_', $^T, $$ )
-                      ->spew( $self->message->body );
-                    $self->debug( 'dumped message to' => $file );
-                }
-                $self->reject( "According to $mx [$address],"
-                      . " <$mail_from> isn't a valid e-mail address: $code $message"
-                );
-            }
-            else {
-                $self->debug("Could not connect to $mx [$address]: $!");
-            }
+    require Net::SMTP;
+    my %net_smtp_params = $self->net_smtp_params->%*;
+    if ( exists $net_smtp_params{Hello}
+        && !defined $net_smtp_params{Hello} )
+    {
+        require Net::Domain and Net::Domain->import('hostfqdn')
+          unless defined &hostfqdn;
+        $net_smtp_params{Hello} = hostfqdn();
+    }
+    if ( my $smtp = Net::SMTP->new( Host => \@mx, %net_smtp_params ) ) {
+        $smtp->starttls;
+        $smtp->mail('<>');
+        $smtp->recipient($mail_from);
+        my $code    = $smtp->code;
+        my $message = $smtp->message;
+        $smtp->quit;
+        $self->debug( $smtp->host . " returned $code $message" );
+        return if $code != 550;
+
+        if ( defined( my $dir = $self->dump_rejected_to ) ) {
+            require Path::Tiny and Path::Tiny->import('path')
+              unless defined &path;
+            path( $dir, my $file = join '_', $^T, $$ )
+              ->spew( $self->message->body );
+            $self->debug( 'dumped message to' => $file );
         }
-        else {    # resolve MX RRs to addresses on demand
-            unshift @mx, my @addresses = map [ $mx, $_->address ],
-              $self->resolve( AAAA => $mx ), $self->resolve( A => $mx );
-            $self->debug( "$mx resolved to " . join ' ',
-                map $_->[1], @addresses );
-        }
+        $self->reject( 'According to '
+              . $smtp->host
+              . ", <$mail_from> isn't a valid e-mail address: $code $message" );
+    }
+    else {
+        $self->debug( "Could not connect to " . $smtp->host . ": $!" );
     }
     $self->debug('Could not verify sender address.');
     return;
-}
-
-sub resolve {
-    my ( $self, $type, $name, $defer ) = @_;
-    state $resolver = Net::DNS::Resolver->new;
-    my $packet = $resolver->send( $name, $type );
-    if ( $packet->header->rcode ne 'NOERROR' ) {
-        my $method = $defer ? 'defer' : 'debug';
-        $self->$method(
-            "Error resolving $type for $name: " . $packet->header->rcode );
-        return;
-    }
-    $packet->answer;
 }
 
 1;
