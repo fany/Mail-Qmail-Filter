@@ -3,7 +3,7 @@ use warnings;    # no default before Perl 5.35
 
 package Mail::Qmail::Filter::VerifySender;
 
-our $VERSION = '0.31';
+our $VERSION = '0.32';
 
 use Mo qw(coerce default);
 extends 'Mail::Qmail::Filter';
@@ -69,7 +69,7 @@ sub filter {
               . ", <$mail_from> isn't a valid e-mail address: $code $message" );
     }
     else {
-        $self->debug( "Could not connect to " . $smtp->host . ": $!" );
+        $self->debug("Could not connect: $@");
     }
     $self->debug('Could not verify sender address.');
     return;
