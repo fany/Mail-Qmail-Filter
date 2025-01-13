@@ -3,7 +3,7 @@ use warnings;    # no default before Perl 5.35
 
 package Mail::Qmail::Filter::VerifySender;
 
-our $VERSION = '0.3';
+our $VERSION = '0.31';
 
 use Mo qw(coerce default);
 extends 'Mail::Qmail::Filter';
@@ -51,8 +51,8 @@ sub filter {
         $smtp->starttls;
         $smtp->mail('<>');
         $smtp->recipient($mail_from);
-        my $code    = $smtp->code;
-        my $message = $smtp->message;
+        my $code = $smtp->code;
+        chomp( my $message = $smtp->message );
         $smtp->quit;
         $self->debug( $smtp->host . " returned $code $message" );
         return if $code != 550;

@@ -3,7 +3,7 @@ use warnings;
 
 package Mail::Qmail::Filter;
 
-our $VERSION = '1.33';
+our $VERSION = '1.4';
 
 use Carp qw(confess);
 use FindBin    ();
@@ -234,6 +234,11 @@ check deliverability according to .qmail files
 =item L<Mail::Qmail::Filter::DMARC>
 
 validate message against DMARC policy of the sender domain
+
+=item L<Mail::Qmail::Filter::Graylist>
+
+implements a graylisting which tries to be compatible to
+that of L<Spamdyke|https://www.spamdyke.org>
 
 =item L<Mail::Qmail::Filter::RequireFrom>
 

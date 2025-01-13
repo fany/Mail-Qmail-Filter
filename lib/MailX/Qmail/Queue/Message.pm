@@ -3,7 +3,7 @@ use warnings;
 
 package MailX::Qmail::Queue::Message;
 
-our $VERSION = '1.0';
+our $VERSION = '1.1';
 
 use base 'Mail::Qmail::Queue::Message';
 
@@ -44,6 +44,14 @@ sub add_header {
     ${ $self->body_ref } = join "\n", @_, $self->body;
     delete $header{$self};
     $self;
+}
+
+sub remote_host {
+    $ENV{TCPREMOTEHOST};
+}
+
+sub remote_ip {
+    $ENV{TCPREMOTEIP};
 }
 
 sub replace_header {
@@ -93,6 +101,14 @@ get the C<HELO>/C<EHLO> string used by the client
 
 Add header fields to the message.
 Expects C<Field: Value> as argument, without newlines at the end.
+
+=item ->remote_host
+
+get the name of the host the message comes from (from its reverse lookup)
+
+=item ->remote_ip
+
+get the IP address the message comes from
 
 =item ->replace_header($header)
 

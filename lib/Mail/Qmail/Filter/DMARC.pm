@@ -3,7 +3,7 @@ use warnings;
 
 package Mail::Qmail::Filter::DMARC;
 
-our $VERSION = '1.32';
+our $VERSION = '1.33';
 
 sub domain {
     shift =~ s/.*\@//r;
@@ -37,9 +37,9 @@ has 'dry_run';
 has 'reject_text' => 'Failed DMARC test.';
 
 sub filter {
-    my $self    = shift;
-    my $message = $self->message;
-
+    my $self      = shift;
+    my $message   = $self->message;
+    my $remote_ip = $message->remote_ip;
     require Mail::DKIM::Verifier;    # lazy load because filter might be skipped
     my $dkim = Mail::DKIM::Verifier->new;
     $dkim->PRINT( $message->body =~ s/\cM?\cJ/\cM\cJ/gr );
@@ -48,9 +48,9 @@ sub filter {
 
     if ( $dkim->result ne 'pass' ) {
 
-        $self->debug( 'Remote IP' => $ENV{TCPREMOTEIP} );
+        $self->debug( 'Remote IP' => $remote_ip );
 
-        my %spf_query = ( ip_address => $ENV{TCPREMOTEIP} );
+        my %spf_query = ( ip_address => $remote_ip );
 
         $self->debug( helo => $spf_query{helo_identity} = $message->helo );
 
@@ -76,7 +76,7 @@ sub filter {
         if (
             my $dmarc = eval {
                 Mail::DMARC::PurePerl->new(
-                    source_ip   => $ENV{TCPREMOTEIP},
+                    source_ip   => $remote_ip,
                     envelope_to => domain( ( $message->to )[0] ),
                     if_set(
                         envelope_from => domain( $message->from ),
