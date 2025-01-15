@@ -3,7 +3,7 @@ use warnings;    # no default before Perl 5.35
 
 package Mail::Qmail::Filter::VerifySender;
 
-our $VERSION = '0.33';
+our $VERSION = '0.34';
 
 use Mo qw(coerce default);
 extends 'Mail::Qmail::Filter';
@@ -51,7 +51,7 @@ sub filter {
         $smtp->starttls;
         $smtp->mail('<>');
         $smtp->recipient($mail_from);
-        my $code = $smtp->code;
+        my $code    = $smtp->code;
         my $message = $smtp->message =~ s/\cM?\cJ\z//r;
         $smtp->quit;
         $self->debug( $smtp->host . " returned $code $message" );
@@ -66,7 +66,8 @@ sub filter {
         }
         $self->reject( 'According to '
               . $smtp->host
-              . ", <$mail_from> isn't a valid e-mail address: $code $message" );
+              . ", your sender address <$mail_from> "
+              . "isn't a working e-mail address: $code $message" );
     }
     else {
         $self->debug("Could not connect: $@");
