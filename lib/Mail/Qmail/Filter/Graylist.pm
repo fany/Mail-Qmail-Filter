@@ -3,7 +3,7 @@ use warnings;
 
 package Mail::Qmail::Filter::Graylist;
 
-our $VERSION = '0.01';
+our $VERSION = '0.1';
 
 use Mo qw(coerce default required);
 extends 'Mail::Qmail::Filter';
@@ -16,8 +16,6 @@ sub filter {
     my $self      = shift;
     my $message   = $self->message;
     my $mail_from = $message->from;
-
-    die if $mail_from =~ /\//;    # Just paranoia.
 
     require Path::Tiny and Path::Tiny->import('path') unless defined &path;
 
@@ -32,10 +30,8 @@ sub filter {
   Rcpt: for ( $message->to ) {
         die if /\//;    # Just paranoia.
         my ( $rcpt_localpart, $rcpt_domain ) = split /\@/, lc, 2;
-        my $graylist_file = path(
-            $self->dir,     $rcpt_domain, $rcpt_localpart,
-            $sender_domain, $sender_localpart
-        );
+        my $graylist_file = path( $self->dir, map y/0-9A-Za-z._-/_/cr,
+            $rcpt_domain, $rcpt_localpart, $sender_domain, $sender_localpart );
         if ( $graylist_file->exists ) {
             {
                 my $fh = $graylist_file->openr;
