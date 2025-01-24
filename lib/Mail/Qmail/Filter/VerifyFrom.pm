@@ -1,19 +1,20 @@
 use 5.02;        # because we use ->%*
 use warnings;    # no default before Perl 5.35
 
-package Mail::Qmail::Filter::VerifySender;
+package Mail::Qmail::Filter::VerifyFrom;
 
 our $VERSION = '0.4';
 
 use Mo qw(coerce default);
 extends 'Mail::Qmail::Filter::Base::CalloutVerify';
 
-has address_type => 'sender';
+has address_type => 'From';
 
 sub filter {
-    my $self = shift;
-    length( my $mail_from = $self->message->from ) or return;
-    $self->callout_verify($mail_from);
+    my $self                = shift;
+    my $header_from         = $self->message->header_from or return;
+    my $header_from_address = $header_from->address;
+    $self->callout_verify($header_from_address);
 }
 
 1;
@@ -23,14 +24,14 @@ __END__
 =head1 NAME
 
 Mail::Qmail::Filter::VerifySender -
-verify RFC5321.MailFrom address via SMTP callout
+verify RFC5322.From address via SMTP callout
 
 =head1 SYNOPSIS
 
     use Mail::Qmail::Filter;
 
     Mail::Qmail::Filter->new->add_filters(
-        '::VerifySender' => {
+        '::VerifyFrom' => {
             skip_for_rcpt => [ 'postmaster', 'postmaster@' . $mydomain ],
         },
         '::Queue',
@@ -38,7 +39,7 @@ verify RFC5321.MailFrom address via SMTP callout
 
 =head1 DESCRIPTION
 
-This L<Mail::Qmail::Filter> plugin checks if the RFC5321.MailFrom aka the
+This L<Mail::Qmail::Filter> plugin checks if the RFC5322.From aka the
 envelope sender of the message is an existing e-mail address via doing
 SMTP callouts.
 

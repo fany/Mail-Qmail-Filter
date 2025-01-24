@@ -3,7 +3,7 @@ use warnings;
 
 package Mail::Qmail::Filter;
 
-our $VERSION = '1.5';
+our $VERSION = '1.62';
 
 use Carp qw(confess);
 use FindBin    ();
@@ -27,19 +27,23 @@ BEGIN {
 has 'defer_only';
 has 'feedback_fh'     => $feedback_fh;
 has 'filters'         => [];
+has 'log_fh';
 has 'reject_text'     => 'Rejected.';
 has 'skip_if';
 has 'skip_for_from'   => coerce => \&addresses_to_hash;
 has 'skip_for_rcpt'   => coerce => \&addresses_to_hash;
 has 'skip_for_sender' => coerce => \&addresses_to_hash;
 has 'skip_if_relayclient';
-has 'trace_dir';
 
 my @debug;
 
 sub debug {
     my $self = shift;
-    push @debug, join ': ', @_;
+    push @debug, my $message = join ': ', @_;
+    if ( $self->log_fh ) {
+        my $package = ref($self) . ' ';
+        $self->log_fh->say( $message !~ /^\Q$package/ && $package, $message );
+    }
 }
 
 $SIG{__DIE__} //= sub {
@@ -66,7 +70,6 @@ sub add_filters {
 sub defer {
     my $self = shift;
     $self->debug( action => 'defer' );
-    $self->_trace('deferred');
     $self->_exit( Z => @_ );
 }
 
@@ -84,7 +87,6 @@ sub message {
 sub reject {
     my $self = shift;
     $self->debug( action => 'reject' );
-    $self->_trace( $self->defer_only ? 'deferred_only' : 'rejected' );
     $self->_exit( $self->defer_only  ? 'Z'             : 'D', @_ );
 }
 
@@ -131,31 +133,6 @@ sub run {
 
     $self->debug("$package started");
     $self->filter;
-    $self->_trace('passed');
-}
-
-sub _trace {
-    my ( $self, $result ) = @_;
-    my $trace_dir = $self->trace_dir or return;
-    require Path::Tiny and Path::Tiny->import('path') unless defined &path;
-    my $id_file = path( $trace_dir, $self->message->identity );
-    unless ( $id_file->exists ) {
-        $id_file->spew( $self->message->body );
-        $self->debug("saved to $id_file");
-    }
-    if (
-        ( my $trace_file = path( join '.', $id_file, $result, ref($self) ) )
-        ->exists )
-    {
-    }
-    elsif ( symlink $id_file->basename, $trace_file ) {
-
-        # This is getting to verbose.
-        # $self->debug("linked to $trace_file");
-    }
-    else {
-        $self->debug("error linking to $trace_file: $!");
-    }
 }
 
 sub _exit {
@@ -290,6 +267,10 @@ validate RFC5322.From
 
 validate RFC5321.MailFrom syntactically
 
+=item L<Mail::QMail::Filter::VerifyFrom>
+
+verify RFC5322.From via SMTP callout
+
 =item L<Mail::QMail::Filter::VerifySender>
 
 verify RFC5321.MailFrom via SMTP callout
@@ -372,31 +353,6 @@ You can use domain names without a localpart to skip any address @ that domain.
 When set to a true value, calls to the L</reject> method will
 result in status code C<451>, that is, the message should only
 be deferred on the sender side.
-
-=head2 trace_dir
-
-Set a directory where every message processed should be copied to for
-debugging/statistical purposes.
-
-Within that directory, the message will be stored within a file whose name
-is composed of the following parts, separated by dots:
-
-=over 4
-
-=item 1.
-
-unique hash for the message, see L<MailX::Qmail::Message/identity>
-
-=item 2.
-
-result of processing: either C<deferred>, C<deferred_only>, C<passed> or
-C<rejected>
-
-=item 3.
-
-package name of the filter which took this decision
-
-=back
 
 =head1 METHODS
 
