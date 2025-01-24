@@ -5,9 +5,9 @@ package Mail::Qmail::Filter;
 
 our $VERSION = '1.62';
 
-use Carp qw(confess);
-use FindBin    ();
-use IO::Handle ();
+use Carp                      qw(confess);
+use FindBin                   ();
+use IO::Handle                ();
 use Mail::Qmail::Filter::Util qw(addresses_to_hash match_address);
 use MailX::Qmail::Queue::Message;
 use Scalar::Util qw(blessed);
@@ -25,10 +25,10 @@ BEGIN {
 }
 
 has 'defer_only';
-has 'feedback_fh'     => $feedback_fh;
-has 'filters'         => [];
+has 'feedback_fh' => $feedback_fh;
+has 'filters'     => [];
 has 'log_fh';
-has 'reject_text'     => 'Rejected.';
+has 'reject_text' => 'Rejected.';
 has 'skip_if';
 has 'skip_for_from'   => coerce => \&addresses_to_hash;
 has 'skip_for_rcpt'   => coerce => \&addresses_to_hash;
@@ -87,7 +87,7 @@ sub message {
 sub reject {
     my $self = shift;
     $self->debug( action => 'reject' );
-    $self->_exit( $self->defer_only  ? 'Z'             : 'D', @_ );
+    $self->_exit( $self->defer_only ? 'Z' : 'D', @_ );
 }
 
 sub run {
