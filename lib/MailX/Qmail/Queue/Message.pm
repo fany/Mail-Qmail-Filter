@@ -3,7 +3,7 @@ use warnings;
 
 package MailX::Qmail::Queue::Message;
 
-our $VERSION = '1.3';
+our $VERSION = '1.4';
 
 use base 'Mail::Qmail::Queue::Message';
 
@@ -50,7 +50,7 @@ sub identity {
     my $self = shift;
     require Digest::SHA1;
     my $digest = Digest::SHA1->new;
-    $digest->add( map "$_\n", $self->from, $self->to );
+    $digest->add( map "$_\n", $self->from, sort $self->to );
     {
         # We only take some header lines for the hash, because tests showed
         # that others (e.g. Received, DKIM-Signatures etc.) _do_ change
