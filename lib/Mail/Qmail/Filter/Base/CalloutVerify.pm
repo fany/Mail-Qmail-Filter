@@ -3,7 +3,7 @@ use warnings;    # no default before Perl 5.35
 
 package Mail::Qmail::Filter::Base::CalloutVerify;
 
-our $VERSION = '0.4';
+our $VERSION = '0.41';
 
 use Mo qw(coerce default required);
 extends 'Mail::Qmail::Filter';
@@ -72,7 +72,7 @@ sub callout_verify {
               . "isn't a working e-mail address: $code $message" );
     }
     else {
-        $self->debug("Could not connect: $@");
+        $self->debug( "Could not connect: $@" =~ s/\n\z//r );
     }
     $self->debug("Could not verify $what.");
     return;

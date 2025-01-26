@@ -3,7 +3,7 @@ use warnings;
 
 package Mail::Qmail::Filter::Graylist;
 
-our $VERSION = '0.1';
+our $VERSION = '0.11';
 
 use Mo qw(coerce default required);
 extends 'Mail::Qmail::Filter';
@@ -38,6 +38,7 @@ sub filter {
                 local $_;
                 while (<$fh>) {
                     /^\Q$remote_ip\E / or next;
+                    chomp;
                     $self->debug( 'known' . ( @to > 1 && " for $_" ) );
                     ++$passed;
                     next Rcpt;
