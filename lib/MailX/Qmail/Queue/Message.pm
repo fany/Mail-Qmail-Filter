@@ -56,7 +56,11 @@ sub identity {
         # that others (e.g. Received, DKIM-Signatures etc.) _do_ change
         # between several delivery attempts of the same message.
         my $header = $self->header;
-        for my $name (qw(Message-ID From To Subject Date)) {
+
+        # I observed cases in the wild where the Date header line changed
+        # between delivery attempts; therefore we do not include it in the
+        # hash.
+        for my $name (qw(Message-ID From To Subject)) {
             $digest->add( map "$name: $_", $header->get($name) );
         }
     }
