@@ -3,7 +3,7 @@ use warnings;
 
 package Mail::Qmail::Filter;
 
-our $VERSION = '1.62';
+our $VERSION = '1.7';
 
 use Carp                      qw(confess);
 use FindBin                   ();
@@ -33,6 +33,7 @@ has 'skip_if';
 has 'skip_for_from'   => coerce => \&addresses_to_hash;
 has 'skip_for_rcpt'   => coerce => \&addresses_to_hash;
 has 'skip_for_sender' => coerce => \&addresses_to_hash;
+has 'skip_if_remote_ip_matches';
 has 'skip_if_relayclient';
 
 my @debug;
@@ -99,6 +100,19 @@ sub run {
 
     if ( exists $ENV{RELAYCLIENT} && $self->skip_if_relayclient ) {
         $self->debug("$package skipped");
+        return;
+    }
+
+    if (
+        $self->skip_if_remote_ip_matches
+        && (
+            my $match = $self->skip_if_remote_ip_matches->match_ip(
+                $self->message->remote_ip
+            )
+        )
+      )
+    {
+        $self->debug("$package skipped because remote IP belongs to $match");
         return;
     }
 
@@ -323,6 +337,11 @@ If the sub routine returns a true value, the rest of the filter is skipped.
 
 When set to a true value, the L</run> method will skip the filter when
 the environment variable C<RELAYCLIENT> exists.
+
+=head2 skip_if_remote_ip_matches
+
+Expects a L<Net::IP::Match::Trie> object.
+Skips the filter in case the client IP address is matched by that object.
 
 =head2 skip_for_sender
 

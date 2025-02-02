@@ -8,7 +8,7 @@ WriteMakefile(
     VERSION_FROM       => 'lib/Mail/Qmail/Filter.pm',
     LICENSE            => 'artistic_2',
     PL_FILES           => {},
-    MIN_PERL_VERSION   => '5.014',
+    MIN_PERL_VERSION   => '5.036',
     CONFIGURE_REQUIRES => {
         'ExtUtils::MakeMaker' => '0',
     },
@@ -29,6 +29,7 @@ WriteMakefile(
         'Mail::SPF'                   => 0,
         'Mo'                          => 0,
         'namespace::clean'            => 0,
+        'Net::IP::Match::Trie'        => 1,
 	'Net::SMTP'                   => 0,
 	'Net::Domain'                 => 0,
         'Path::Tiny'                  => 0,
