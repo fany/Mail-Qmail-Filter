@@ -3,7 +3,7 @@ use warnings;    # no default before Perl 5.35
 
 package Mail::Qmail::Filter::Base::CalloutVerify;
 
-our $VERSION = '0.41';
+our $VERSION = '0.42';
 
 use Mo qw(coerce default required);
 extends 'Mail::Qmail::Filter';
@@ -30,6 +30,9 @@ sub callout_verify {
     my @mx = map $_->exchange,
       sort { $a->preference <=> $b->preference } grep $_->type eq 'MX',
       $packet->answer;
+    $self->reject(
+        "Domain $domain is explicitely not configured for e-mail (RFC 7505).")
+      if @mx == 1 && "@mx" eq '.';
 
     if (@mx) {
         $self->debug("MXes for sender domain $domain: @mx");
