@@ -1,19 +1,46 @@
 use 5.014;
-use warnings;    # no default before Perl 5.35
+use warnings;
 
-package Mail::Qmail::Filter::VerifySender;
+package Mail::Qmail::Filter::RDNS;
 
-our $VERSION = '0.41';
+our $VERSION = '0.1';
 
 use Mo qw(coerce default);
-extends 'Mail::Qmail::Filter::Base::CalloutVerify';
+extends 'Mail::Qmail::Filter';
 
-has address_type => 'sender';
+use Socket qw(
+  AF_INET
+  AF_INET6
+  getaddrinfo
+  getnameinfo
+  inet_pton
+  NI_NUMERICHOST
+  SOCK_STREAM
+);
 
 sub filter {
     my $self = shift;
-    length( my $mail_from = $self->message->from ) or return;
-    $self->callout_verify($mail_from);
+
+    my $remote_ip = $self->message->remote_ip
+      or $self->debug('No remote IP!?'), return;
+    my $addr_family = $remote_ip =~ /:/ ? AF_INET6 : AF_INET;
+    my $packed_ip   = inet_pton( $addr_family, $remote_ip )
+      or $self->debug("Cannot pack remote IP $remote_ip!?"), return;
+    my $fqdn = gethostbyaddr( $packed_ip, $addr_family )
+      or $self->reject("Your IP address $remote_ip has no reverse DNS entry.");
+
+    $self->debug("$remote_ip resolved to $fqdn");
+    my ( $err, @addresses ) =
+      getaddrinfo( $fqdn, undef, { socktype => SOCK_STREAM } );
+    $self->debug("Error $err resolving $fqdn"), return if $err;
+    for (@addresses) {
+        next if $_->{family} != $addr_family;
+        my ( $err, $ip ) = getnameinfo( $_->{addr}, NI_NUMERICHOST );
+        return if $ip eq $remote_ip;
+    }
+    $self->reject(
+            "The reverse lookup of your IP address $remote_ip points to"
+          . " $fqdn, but there is no matching DNS entry for this name." );
 }
 
 1;
@@ -22,15 +49,15 @@ __END__
 
 =head1 NAME
 
-Mail::Qmail::Filter::VerifySender -
-verify RFC5321.MailFrom address via SMTP callout
+Mail::Qmail::Filter::RDNS -
+verify DNS reverse lookup of client
 
 =head1 SYNOPSIS
 
     use Mail::Qmail::Filter;
 
     Mail::Qmail::Filter->new->add_filters(
-        '::VerifySender' => {
+        '::RDNS' => {
             skip_for_rcpt => [ 'postmaster', 'postmaster@' . $mydomain ],
         },
         '::Queue',
@@ -38,12 +65,9 @@ verify RFC5321.MailFrom address via SMTP callout
 
 =head1 DESCRIPTION
 
-This L<Mail::Qmail::Filter> plugin checks if the RFC5321.MailFrom aka the
-envelope sender of the message is an existing e-mail address via doing
-SMTP callouts.
-
-For further details, please refer to
-L<Mail::Qmail::Filter::Base::CalloutVerify>.
+This L<Mail::Qmail::Filter> plugin checks if there is a reverse DNS entry
+for the IP address of the client and if there is a matching DNS entry for
+the name it points to back to the IP address of the client.
 
 =head1 LICENSE AND COPYRIGHT
 

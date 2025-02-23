@@ -9,6 +9,7 @@ lib/Mail/Qmail/Filter/Dump.pm
 lib/Mail/Qmail/Filter/Graylist.pm
 lib/Mail/Qmail/Filter/LogEnvelope.pm
 lib/Mail/Qmail/Filter/Queue.pm
+lib/Mail/Qmail/Filter/RDNS.pm
 lib/Mail/Qmail/Filter/RequireFrom.pm
 lib/Mail/Qmail/Filter/RewriteFrom.pm
 lib/Mail/Qmail/Filter/RewriteSender.pm

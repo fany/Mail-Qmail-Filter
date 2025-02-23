@@ -1,9 +1,9 @@
-use 5.02;        # because we use ->%*
+use 5.014;
 use warnings;    # no default before Perl 5.35
 
 package Mail::Qmail::Filter::VerifyFrom;
 
-our $VERSION = '0.4';
+our $VERSION = '0.41';
 
 use Mo qw(coerce default);
 extends 'Mail::Qmail::Filter::Base::CalloutVerify';

@@ -3,7 +3,7 @@ use warnings;
 
 package Mail::Qmail::Filter;
 
-our $VERSION = '1.7';
+our $VERSION = '1.71';
 
 use Carp                      qw(confess);
 use FindBin                   ();
@@ -260,6 +260,10 @@ validate message against DMARC policy of the sender domain
 
 implements a graylisting which tries to be compatible to
 that of L<Spamdyke|https://www.spamdyke.org>
+
+=item L<Mail::Qmail::Filter::RDNS>
+
+checks the reverse DNS of the IP address of the client
 
 =item L<Mail::Qmail::Filter::RequireFrom>
 
