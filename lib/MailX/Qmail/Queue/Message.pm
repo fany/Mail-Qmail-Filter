@@ -3,7 +3,7 @@ use warnings;
 
 package MailX::Qmail::Queue::Message;
 
-our $VERSION = '1.4';
+our $VERSION = '1.41';
 
 use base 'Mail::Qmail::Queue::Message';
 
@@ -59,8 +59,8 @@ sub identity {
 
         # I observed cases in the wild where the Date header line changed
         # between delivery attempts; therefore we do not include it in the
-        # hash.
-        for my $name (qw(Message-ID From To Subject)) {
+        # hash. And e.g. for AOL.com, even the Message-ID might change.
+        for my $name (qw(From To Subject)) {
             $digest->add( map "$name: $_", $header->get($name) );
         }
     }
