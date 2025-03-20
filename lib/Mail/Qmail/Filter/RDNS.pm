@@ -3,7 +3,7 @@ use warnings;
 
 package Mail::Qmail::Filter::RDNS;
 
-our $VERSION = '0.1';
+our $VERSION = '0.12';
 
 use Mo qw(coerce default);
 extends 'Mail::Qmail::Filter';
@@ -32,11 +32,13 @@ sub filter {
     $self->debug("$remote_ip resolved to $fqdn");
     my ( $err, @addresses ) =
       getaddrinfo( $fqdn, undef, { socktype => SOCK_STREAM } );
-    $self->debug("Error $err resolving $fqdn"), return if $err;
+    $self->defer("$err resolving $fqdn")
+      if $err && $err ne 'Name or service now known';
     for (@addresses) {
         next if $_->{family} != $addr_family;
         my ( $err, $ip ) = getnameinfo( $_->{addr}, NI_NUMERICHOST );
-        return if $ip eq $remote_ip;
+        return if inet_pton( $addr_family, $ip ) eq $packed_ip;
+        $self->debug("$ip does not match");
     }
     $self->reject(
             "The reverse lookup of your IP address $remote_ip points to"
