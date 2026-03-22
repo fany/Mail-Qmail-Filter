@@ -3,7 +3,7 @@ use warnings;
 
 package Mail::Qmail::Filter::Graylist;
 
-our $VERSION = '0.11';
+our $VERSION = '0.12';
 
 use Mo qw(coerce default required);
 extends 'Mail::Qmail::Filter';
@@ -28,7 +28,6 @@ sub filter {
     my $passed = 0;
     my @to     = $message->to;
   Rcpt: for ( $message->to ) {
-        die if /\//;    # Just paranoia.
         my ( $rcpt_localpart, $rcpt_domain ) = split /\@/, lc, 2;
         my $graylist_file = path( $self->dir, map y/0-9A-Za-z._-/_/cr,
             $rcpt_domain, $rcpt_localpart, $sender_domain, $sender_localpart );
@@ -70,7 +69,7 @@ __END__
 
 =head1 NAME
 
-Mail::Qmail::Filter::VerifySender -
+Mail::Qmail::Filter::Graylist -
 spamdyke compatible graylisting
 
 =head1 SYNOPSIS
