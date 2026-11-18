@@ -5,7 +5,7 @@ use ExtUtils::MakeMaker;
 WriteMakefile(
     NAME               => 'Mail::Qmail::Filter',
     AUTHOR             => q{Martin Sluka <perl@sluka.de>},
-    VERSION            => '2.0',
+    VERSION            => '2.01',
     EXE_FILES          => ['bin/qmail-deliverable'],
     LICENSE            => 'artistic_2',
     PL_FILES           => {},
